@@ -1,11 +1,13 @@
 <template>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>복음 펜토미노 - 하나님의 사랑</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>부평 순복음교회 교재용 - 복음 펜토미노</title>
   </head>
   <body>
-    <!-- 사용 예제 -->
     <div id="app"></div>
   </body>
 </template>
@@ -21,14 +23,16 @@ class GospelPentomino {
     this.container = document.getElementById(containerId)
     this.options = {
       title: options.title || '복음 펜토미노',
-      subtitle: options.subtitle || 'Created by. 이도겸', // 부제: 하나님의 사랑을 담은 퍼즐 \n
+      subtitle: options.subtitle || 'Copyrighted by. 이도겸',
       verse: options.verse || '"하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니" - 요한복음 3:16',
-      width: options.width || 'clamp(400px, 70vw, 800px)',
-      height: options.height || 'clamp(400px, 70vw, 800px)',
+      width: options.width || 'min(80vw, 80vh)',
+      height: options.height || 'min(80vw, 80vh)',
       ...options,
     }
 
     this.selectedColor = null
+    this.speechSynthesis = window.speechSynthesis
+    this.currentUtterance = null
     this.puzzlePattern = [
       ['white', 'white', 'black', 'yellow', 'yellow', 'black', 'black'],
       ['red', 'red', 'black', 'yellow', 'white', 'green', 'black'],
@@ -102,7 +106,9 @@ class GospelPentomino {
                         <div class="gospel-pentomino-modal-content">
                             <span class="gospel-pentomino-close">&times;</span>
                             <div class="gospel-pentomino-color-indicator" id="${this.containerId}-colorIndicator"></div>
-                            <h2 id="${this.containerId}-modalTitle"></h2>
+                            <h2 id="${this.containerId}-modalTitle">
+                                <span class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</span>
+                            </h2>
                             <p id="${this.containerId}-modalText"></p>
                             <div class="gospel-pentomino-bible-verse" id="${this.containerId}-bibleVerse"></div>
                         </div>
@@ -137,8 +143,13 @@ class GospelPentomino {
     // 모달 관련 이벤트
     const modal = document.getElementById(`${this.containerId}-modal`)
     const closeBtn = this.container.querySelector('.gospel-pentomino-close')
+    const speakerBtn = document.getElementById(`${this.containerId}-speaker`)
 
     closeBtn.addEventListener('click', () => this.closeModal())
+    speakerBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.toggleSpeech()
+    })
 
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
@@ -152,6 +163,74 @@ class GospelPentomino {
         this.closeModal()
       }
     })
+  }
+
+  toggleSpeech() {
+    const speaker = document.getElementById(`${this.containerId}-speaker`)
+
+    if (this.speechSynthesis.speaking) {
+      this.speechSynthesis.cancel()
+      speaker.classList.remove('playing')
+      speaker.textContent = '🔊'
+      return
+    }
+
+    // const title = document
+    //   .getElementById(`${this.containerId}-modalTitle`)
+    //   .textContent.replace('🔊', '')
+    //   .trim()
+    const text = document.getElementById(`${this.containerId}-modalText`).textContent
+    const verse = document.getElementById(`${this.containerId}-bibleVerse`).textContent
+
+    const fullText = `.${text}`
+
+    this.currentUtterance = new SpeechSynthesisUtterance(fullText)
+
+    // 묵직한 남자 목소리 설정
+    this.currentUtterance.pitch = 1 // 더 낮은 음높이
+    this.currentUtterance.rate = 0.9 // 더 느린 속도
+    this.currentUtterance.volume = 2.0 // 최대 볼륨
+
+    // 한국어 남성 음성 선택 - 더 정확한 필터링
+    const voices = this.speechSynthesis.getVoices()
+
+    // 우선순위대로 음성 찾기
+    const maleVoice =
+      voices.find((voice) => voice.lang === 'ko-KR' && voice.name.includes('Male')) ||
+      voices.find((voice) => voice.lang === 'ko-KR' && voice.name.includes('남')) ||
+      voices.find(
+        (voice) =>
+          voice.lang === 'ko-KR' && !voice.name.includes('Female') && !voice.name.includes('여'),
+      ) ||
+      voices.find((voice) => voice.lang.includes('ko') && voice.name.includes('Male')) ||
+      voices.find((voice) => voice.lang.includes('ko') && !voice.name.includes('Female')) ||
+      voices.find((voice) => voice.lang.includes('ko')) ||
+      voices[0]
+
+    if (maleVoice) {
+      this.currentUtterance.voice = maleVoice
+    }
+
+    // 언어 설정
+    this.currentUtterance.lang = 'ko-KR'
+
+    // 이벤트 핸들러
+    this.currentUtterance.onstart = () => {
+      speaker.classList.add('playing')
+      speaker.textContent = '🔇'
+    }
+
+    this.currentUtterance.onend = () => {
+      speaker.classList.remove('playing')
+      speaker.textContent = '🔊'
+    }
+
+    this.currentUtterance.onerror = () => {
+      speaker.classList.remove('playing')
+      speaker.textContent = '🔊'
+    }
+
+    this.speechSynthesis.speak(this.currentUtterance)
   }
 
   handlePieceClick(event) {
@@ -179,20 +258,35 @@ class GospelPentomino {
     const title = document.getElementById(`${this.containerId}-modalTitle`)
     const text = document.getElementById(`${this.containerId}-modalText`)
     const verse = document.getElementById(`${this.containerId}-bibleVerse`)
+    const speaker = document.getElementById(`${this.containerId}-speaker`)
 
     const message = this.colorMessages[color]
     if (message) {
       indicator.className = `gospel-pentomino-color-indicator gospel-pentomino-${color}`
-      title.textContent = message.title
+      title.innerHTML =
+        message.title +
+        `<span class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</span>`
       text.textContent = message.text
       verse.textContent = message.verse
       modal.style.display = 'block'
+
+      // 스피커 버튼 이벤트 재설정
+      const newSpeaker = document.getElementById(`${this.containerId}-speaker`)
+      newSpeaker.addEventListener('click', (e) => {
+        e.stopPropagation()
+        this.toggleSpeech()
+      })
     }
   }
 
   closeModal() {
     const modal = document.getElementById(`${this.containerId}-modal`)
     modal.style.display = 'none'
+
+    // 음성 재생 중이면 중지
+    if (this.speechSynthesis.speaking) {
+      this.speechSynthesis.cancel()
+    }
 
     // 선택 효과 제거
     this.container.querySelectorAll('.gospel-pentomino-piece').forEach((piece) => {
@@ -313,6 +407,9 @@ class GospelPentomino {
 
   // 공개 메서드들
   destroy() {
+    if (this.speechSynthesis.speaking) {
+      this.speechSynthesis.cancel()
+    }
     this.container.innerHTML = ''
   }
 
@@ -342,23 +439,39 @@ document.addEventListener('DOMContentLoaded', function () {
   // 기본 사용법
   const pentomino1 = new GospelPentomino('app')
 
-  // 커스터마이징 예제
-  /*
-            const pentomino2 = new GospelPentomino('app', {
-                title: '맞춤 제목',
-                subtitle: '맞춤 부제목',
-                verse: '맞춤 성경구절',
-                width: '600px',
-                height: '600px'
-            });
-            */
+  // 음성 기능을 위한 초기화
+  if ('speechSynthesis' in window) {
+    // 음성 목록 로드
+    speechSynthesis.getVoices()
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = () => {
+        speechSynthesis.getVoices()
+      }
+    }
+  }
 })
 </script>
+
 <style>
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 body {
@@ -371,13 +484,6 @@ body {
       rgba(255, 255, 255, 0.01) 50%,
       rgba(255, 215, 0, 0.03) 100%
     );
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow-x: hidden;
   position: relative;
 }
 
@@ -413,24 +519,28 @@ body::before {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   z-index: 10;
   position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
 }
 
 .gospel-pentomino-header {
   text-align: center;
-  margin-bottom: 50px;
+  margin-bottom: 20px;
 }
 
 .gospel-pentomino-title {
-  font-size: clamp(3rem, 6vw, 5rem);
+  font-size: clamp(2rem, 5vw, 3.5rem);
   color: #ffd700;
   text-shadow:
     0 0 15px rgba(255, 215, 0, 0.8),
     0 0 30px rgba(255, 215, 0, 0.6),
     0 0 45px rgba(255, 215, 0, 0.4),
     0 0 60px rgba(255, 215, 0, 0.2);
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   animation: holyGlow 5s ease-in-out infinite alternate;
   font-weight: 200;
   letter-spacing: 3px;
@@ -457,16 +567,16 @@ body::before {
 }
 
 .gospel-pentomino-subtitle {
-  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  font-size: clamp(0.9rem, 2.5vw, 1.3rem);
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   font-weight: 200;
   letter-spacing: 1px;
 }
 
 .gospel-pentomino-verse {
-  font-size: clamp(1rem, 2.2vw, 1.3rem);
+  font-size: clamp(0.8rem, 2vw, 1.1rem);
   color: rgba(255, 215, 0, 0.9);
   font-style: italic;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
@@ -476,7 +586,7 @@ body::before {
 
 .gospel-pentomino-frame {
   position: relative;
-  padding: 35px;
+  padding: 20px;
   background:
     linear-gradient(145deg, #2c2c2c, #1a1a1a),
     linear-gradient(
@@ -485,7 +595,7 @@ body::before {
       rgba(255, 255, 255, 0.05) 50%,
       rgba(255, 215, 0, 0.1) 100%
     );
-  border-radius: 30px;
+  border-radius: 20px;
   box-shadow:
     0 25px 80px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -498,12 +608,12 @@ body::before {
 .gospel-pentomino-frame::before {
   content: '';
   position: absolute;
-  top: 20px;
-  left: 20px;
-  right: 20px;
-  bottom: 20px;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
   border: 2px solid transparent;
-  border-radius: 20px;
+  border-radius: 15px;
   background: linear-gradient(
       45deg,
       rgba(255, 215, 0, 0.3),
@@ -529,7 +639,7 @@ body::before {
   left: -2px;
   right: -2px;
   bottom: -2px;
-  border-radius: 32px;
+  border-radius: 22px;
   background: linear-gradient(
     45deg,
     rgba(255, 215, 0, 0.4) 0%,
@@ -553,8 +663,10 @@ body::before {
 }
 
 .gospel-pentomino-board {
-  width: clamp(400px, 70vw, 800px);
-  height: clamp(400px, 70vw, 800px);
+  width: min(80vw, 80vh);
+  height: min(80vw, 80vh);
+  max-width: 600px;
+  max-height: 600px;
   background:
     linear-gradient(135deg, #0a0a0a, #1a1a1a, #0a0a0a),
     repeating-linear-gradient(
@@ -564,7 +676,7 @@ body::before {
       rgba(255, 215, 0, 0.02) 1px,
       rgba(255, 215, 0, 0.02) 2px
     );
-  border-radius: 20px;
+  border-radius: 15px;
   position: relative;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -714,11 +826,13 @@ body::before {
 
 .gospel-pentomino-modal-content {
   background: linear-gradient(145deg, #ffffff, #f8f9fa);
-  margin: 10% auto;
+  margin: 5% auto;
   padding: 40px;
   border-radius: 25px;
   width: 90%;
   max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
   position: relative;
   animation: modalSlideIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow:
@@ -791,6 +905,48 @@ body::before {
   font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: 400;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+  padding-right: 50px;
+}
+
+.gospel-pentomino-speaker {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 30px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.3s ease;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.gospel-pentomino-speaker:hover {
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.gospel-pentomino-speaker.playing {
+  color: #ffd700;
+  animation: speakerPulse 1s ease-in-out infinite;
+}
+
+@keyframes speakerPulse {
+  0%,
+  100% {
+    transform: translateY(-50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.4);
+  }
+  50% {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+  }
 }
 
 .gospel-pentomino-modal p {
@@ -813,33 +969,74 @@ body::before {
 /* 반응형 디자인 */
 @media (max-width: 768px) {
   .gospel-pentomino-frame {
-    padding: 20px;
+    padding: 15px;
+  }
+
+  .gospel-pentomino-board {
+    width: min(85vw, 85vh);
+    height: min(85vw, 85vh);
   }
 
   .gospel-pentomino-modal-content {
-    margin: 20% auto;
-    padding: 30px;
+    margin: 10% auto;
+    padding: 25px;
+  }
+
+  .gospel-pentomino-title {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
+  .gospel-pentomino-subtitle {
+    font-size: clamp(0.8rem, 2vw, 1rem);
+  }
+
+  .gospel-pentomino-verse {
+    font-size: clamp(0.7rem, 1.8vw, 0.9rem);
   }
 }
 
 @media (max-width: 480px) {
   .gospel-pentomino-frame {
-    padding: 15px;
+    padding: 10px;
+  }
+
+  .gospel-pentomino-board {
+    width: min(90vw, 90vh);
+    height: min(90vw, 90vh);
+  }
+
+  .gospel-pentomino-header {
+    margin-bottom: 15px;
   }
 
   .gospel-pentomino-modal-content {
-    margin: 25% auto;
-    padding: 25px;
+    margin: 15% auto;
+    padding: 20px;
   }
 }
 
-/* 전체화면 최적화 */
-@media (min-width: 1200px) {
+/* 가로 모드 최적화 */
+@media (orientation: landscape) and (max-height: 600px) {
+  .gospel-pentomino-header {
+    margin-bottom: 10px;
+  }
+
+  .gospel-pentomino-title {
+    font-size: clamp(1.2rem, 3vw, 2rem);
+  }
+
+  .gospel-pentomino-subtitle {
+    font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+    margin-bottom: 5px;
+  }
+
+  .gospel-pentomino-verse {
+    font-size: clamp(0.6rem, 1.2vw, 0.8rem);
+  }
+
   .gospel-pentomino-board {
-    width: 80vw;
-    height: 80vw;
-    max-width: 1000px;
-    max-height: 1000px;
+    width: min(60vh, 60vw);
+    height: min(60vh, 60vw);
   }
 }
 
