@@ -5,7 +5,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>부평 순복음교회 교재용 - 복음 펜토미노</title>
+    <title>복음퍼즐-펜토미노-이도겸</title>
   </head>
   <body>
     <div id="app"></div>
@@ -14,187 +14,54 @@
 
 <script>
 /**
- * 복음 펜토미노 컴포넌트 클래스
- * 재사용 가능한 복음 퍼즐 컴포넌트
+ * 오디오 관리 클래스 - TTS 기능 담당
  */
-class GospelPentomino {
-  constructor(containerId, options = {}) {
-    this.containerId = containerId
-    this.container = document.getElementById(containerId)
-    this.options = {
-      title: options.title || '복음 펜토미노',
-      subtitle: options.subtitle || 'Copyrighted by. 이도겸',
-      verse: options.verse || '"하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니" - 요한복음 3:16',
-      width: options.width || 'min(80vw, 80vh)',
-      height: options.height || 'min(80vw, 80vh)',
-      ...options,
-    }
-
-    this.selectedColor = null
+class AudioManager {
+  constructor() {
     this.speechSynthesis = window.speechSynthesis
     this.currentUtterance = null
-    this.puzzlePattern = [
-      ['white', 'white', 'black', 'yellow', 'yellow', 'black', 'black'],
-      ['red', 'red', 'black', 'yellow', 'white', 'green', 'black'],
-      ['red', 'red', 'red', 'white', 'white', 'green', 'green'],
-      ['red', 'red', 'white', 'white', 'green', 'black', 'yellow'],
-      ['white', 'white', 'white', 'black', 'black', 'yellow', 'yellow'],
-      ['red', 'red', 'black', 'green', 'green', 'yellow', 'white'],
-      ['red', 'white', 'white', 'green', 'yellow', 'yellow', 'white'],
-    ]
-
-    this.colorMessages = {
-      red: {
-        title: '빨간색 - 예수님의 사랑과 희생',
-        text: '빨간색은 예수 그리스도께서 우리 죄를 위해 십자가에서 흘리신 보혈을 상징합니다. 하나님의 무한한 사랑이 이 색깔 안에 담겨있습니다.',
-        verse:
-          '"그가 찔림은 우리의 허물 때문이요 그가 상함은 우리의 죄악 때문이라 그가 징계를 받으므로 우리는 평화를 누리고 그가 채찍에 맞으므로 우리는 나음을 받았도다" - 이사야 53:5',
-      },
-      black: {
-        title: '검은색 - 죄와 어둠에서 벗어남',
-        text: '검은색은 우리 모두가 가지고 있던 죄와 영적 어둠을 나타냅니다. 하지만 예수님의 빛이 이 어둠을 이기셨습니다.',
-        verse:
-          '"모든 사람이 죄를 범하였으매 하나님의 영광에 이르지 못하더니 그리스도 예수 안에 있는 속량으로 말미암아 하나님의 은혜로 값없이 의롭다 하심을 얻은 자 되었느니라" - 로마서 3:23-24',
-      },
-      yellow: {
-        title: '노란색 - 천국과 하나님의 영광',
-        text: '노란색(금색)은 하나님의 영광과 천국의 찬란함을 상징합니다. 영원한 생명과 하나님의 임재를 나타냅니다.',
-        verse:
-          '"그 성은 해나 달의 비침이 쓸 데 없으니 이는 하나님의 영광이 비치고 어린 양이 그 등불이 되심이라" - 요한계시록 21:23',
-      },
-      green: {
-        title: '초록색 - 새 생명과 영적 성장',
-        text: '초록색은 그리스트 안에서 얻는 새 생명과 계속되는 영적 성장을 나타냅니다. 하나님의 말씀으로 자라가는 믿음을 상징합니다.',
-        verse:
-          '"그런즉 누구든지 그리스도 안에 있으면 새로운 피조물이라 이전 것은 지나갔으니 보라 새 것이 되었도다" - 고린도후서 5:17',
-      },
-      white: {
-        title: '흰색 - 순결과 구원의 완성',
-        text: '흰색은 예수님을 믿는 자가 받는 죄 사함과 순결함을 상징합니다. 하나님 앞에서 의롭게 여김 받는 상태를 나타냅니다.',
-        verse:
-          '"너희 죄가 주홍 같을지라도 눈과 같이 희어질 것이요 진홍 같이 붉을지라도 양털 같이 되리라" - 이사야 1:18',
-      },
-    }
-
-    this.init()
+    this.isPlaying = false
   }
 
-  init() {
-    this.render()
-    this.setupEventListeners()
-    this.removeSameColorBorders()
-  }
-
-  render() {
-    this.container.innerHTML = `
-                    <div class="gospel-pentomino-container">
-                        <div class="gospel-pentomino-header">
-                            <h1 class="gospel-pentomino-title">${this.options.title}</h1>
-                            <div class="gospel-pentomino-subtitle">${this.options.subtitle}</div>
-                            <div class="gospel-pentomino-verse">${this.options.verse}</div>
-                        </div>
-
-                        <div class="gospel-pentomino-frame">
-                            <div class="gospel-pentomino-board" id="${this.containerId}-board" style="width: ${this.options.width}; height: ${this.options.height}">
-                                ${this.createPuzzleBoard()}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 모달 다이얼로그 -->
-                    <div id="${this.containerId}-modal" class="gospel-pentomino-modal">
-                        <div class="gospel-pentomino-modal-content">
-                            <span class="gospel-pentomino-close">&times;</span>
-                            <div class="gospel-pentomino-color-indicator" id="${this.containerId}-colorIndicator"></div>
-                            <h2 id="${this.containerId}-modalTitle">
-                                <span class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</span>
-                            </h2>
-                            <p id="${this.containerId}-modalText"></p>
-                            <div class="gospel-pentomino-bible-verse" id="${this.containerId}-bibleVerse"></div>
-                        </div>
-                    </div>
-                `
-  }
-
-  createPuzzleBoard() {
-    let boardHTML = ''
-    this.puzzlePattern.forEach((row, rowIndex) => {
-      row.forEach((color, colIndex) => {
-        boardHTML += `
-                            <div class="gospel-pentomino-piece gospel-pentomino-${color}"
-                                 data-color="${color}"
-                                 data-row="${rowIndex}"
-                                 data-col="${colIndex}">
-                            </div>
-                        `
-      })
-    })
-    return boardHTML
-  }
-
-  setupEventListeners() {
-    // 조각 클릭 이벤트
-    const pieces = this.container.querySelectorAll('.gospel-pentomino-piece')
-    pieces.forEach((piece) => {
-      piece.addEventListener('click', (e) => this.handlePieceClick(e))
-      piece.addEventListener('mouseenter', (e) => this.createSparkles(e.target))
-    })
-
-    // 모달 관련 이벤트
-    const modal = document.getElementById(`${this.containerId}-modal`)
-    const closeBtn = this.container.querySelector('.gospel-pentomino-close')
-    const speakerBtn = document.getElementById(`${this.containerId}-speaker`)
-
-    closeBtn.addEventListener('click', () => this.closeModal())
-    speakerBtn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this.toggleSpeech()
-    })
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        this.closeModal()
-      }
-    })
-
-    // ESC 키로 모달 닫기
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.closeModal()
-      }
-    })
-  }
-
-  toggleSpeech() {
-    const speaker = document.getElementById(`${this.containerId}-speaker`)
-
+  toggleSpeech(text, speakerElement) {
     if (this.speechSynthesis.speaking) {
       this.speechSynthesis.cancel()
-      speaker.classList.remove('playing')
-      speaker.textContent = '🔊'
+      this.updateSpeakerUI(speakerElement, false)
       return
     }
 
-    // const title = document
-    //   .getElementById(`${this.containerId}-modalTitle`)
-    //   .textContent.replace('🔊', '')
-    //   .trim()
-    const text = document.getElementById(`${this.containerId}-modalText`).textContent
-    const verse = document.getElementById(`${this.containerId}-bibleVerse`).textContent
-
     const fullText = `.${text}`
-
     this.currentUtterance = new SpeechSynthesisUtterance(fullText)
 
-    // 묵직한 남자 목소리 설정
-    this.currentUtterance.pitch = 1 // 더 낮은 음높이
-    this.currentUtterance.rate = 0.9 // 더 느린 속도
-    this.currentUtterance.volume = 2.0 // 최대 볼륨
+    // 음성 설정
+    this.configureSpeech()
 
-    // 한국어 남성 음성 선택 - 더 정확한 필터링
+    // 이벤트 핸들러
+    this.currentUtterance.onstart = () => {
+      this.isPlaying = true
+      this.updateSpeakerUI(speakerElement, true)
+    }
+
+    this.currentUtterance.onend = () => {
+      this.isPlaying = false
+      this.updateSpeakerUI(speakerElement, false)
+    }
+
+    this.currentUtterance.onerror = () => {
+      this.isPlaying = false
+      this.updateSpeakerUI(speakerElement, false)
+    }
+
+    this.speechSynthesis.speak(this.currentUtterance)
+  }
+
+  configureSpeech() {
+    this.currentUtterance.pitch = 1
+    this.currentUtterance.rate = 0.9
+    this.currentUtterance.volume = 2.0
+
+    // 한국어 남성 음성 선택
     const voices = this.speechSynthesis.getVoices()
-
-    // 우선순위대로 음성 찾기
     const maleVoice =
       voices.find((voice) => voice.lang === 'ko-KR' && voice.name.includes('Male')) ||
       voices.find((voice) => voice.lang === 'ko-KR' && voice.name.includes('남')) ||
@@ -210,141 +77,30 @@ class GospelPentomino {
     if (maleVoice) {
       this.currentUtterance.voice = maleVoice
     }
-
-    // 언어 설정
     this.currentUtterance.lang = 'ko-KR'
-
-    // 이벤트 핸들러
-    this.currentUtterance.onstart = () => {
-      speaker.classList.add('playing')
-      speaker.textContent = '🔇'
-    }
-
-    this.currentUtterance.onend = () => {
-      speaker.classList.remove('playing')
-      speaker.textContent = '🔊'
-    }
-
-    this.currentUtterance.onerror = () => {
-      speaker.classList.remove('playing')
-      speaker.textContent = '🔊'
-    }
-
-    this.speechSynthesis.speak(this.currentUtterance)
   }
 
-  handlePieceClick(event) {
-    const element = event.currentTarget
-    const color = element.dataset.color
-
-    // 이전 선택 제거
-    this.container.querySelectorAll('.gospel-pentomino-piece').forEach((piece) => {
-      piece.classList.remove('active')
-    })
-
-    // 같은 색깔 조각들 하이라이트
-    this.container.querySelectorAll(`.gospel-pentomino-${color}`).forEach((piece) => {
-      piece.classList.add('active')
-    })
-
-    this.selectedColor = color
-    this.showColorModal(color)
-    this.createBlessedLight(element)
-  }
-
-  showColorModal(color) {
-    const modal = document.getElementById(`${this.containerId}-modal`)
-    const indicator = document.getElementById(`${this.containerId}-colorIndicator`)
-    const title = document.getElementById(`${this.containerId}-modalTitle`)
-    const text = document.getElementById(`${this.containerId}-modalText`)
-    const verse = document.getElementById(`${this.containerId}-bibleVerse`)
-    const speaker = document.getElementById(`${this.containerId}-speaker`)
-
-    const message = this.colorMessages[color]
-    if (message) {
-      indicator.className = `gospel-pentomino-color-indicator gospel-pentomino-${color}`
-      title.innerHTML =
-        message.title +
-        `<span class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</span>`
-      text.textContent = message.text
-      verse.textContent = message.verse
-      modal.style.display = 'block'
-
-      // 스피커 버튼 이벤트 재설정
-      const newSpeaker = document.getElementById(`${this.containerId}-speaker`)
-      newSpeaker.addEventListener('click', (e) => {
-        e.stopPropagation()
-        this.toggleSpeech()
-      })
+  updateSpeakerUI(speakerElement, isPlaying) {
+    if (isPlaying) {
+      speakerElement.classList.add('playing')
+      speakerElement.textContent = '🔇'
+    } else {
+      speakerElement.classList.remove('playing')
+      speakerElement.textContent = '🔊'
     }
   }
 
-  closeModal() {
-    const modal = document.getElementById(`${this.containerId}-modal`)
-    modal.style.display = 'none'
-
-    // 음성 재생 중이면 중지
+  stop() {
     if (this.speechSynthesis.speaking) {
       this.speechSynthesis.cancel()
     }
-
-    // 선택 효과 제거
-    this.container.querySelectorAll('.gospel-pentomino-piece').forEach((piece) => {
-      piece.classList.remove('active')
-    })
-
-    this.selectedColor = null
   }
+}
 
-  removeSameColorBorders() {
-    this.puzzlePattern.forEach((row, rowIndex) => {
-      row.forEach((color, colIndex) => {
-        const currentPiece = this.container.querySelector(
-          `[data-row="${rowIndex}"][data-col="${colIndex}"]`,
-        )
-
-        // 오른쪽 조각 체크
-        if (colIndex < row.length - 1) {
-          const rightColor = this.puzzlePattern[rowIndex][colIndex + 1]
-          if (color === rightColor) {
-            currentPiece.style.borderRight = 'none'
-            const rightPiece = this.container.querySelector(
-              `[data-row="${rowIndex}"][data-col="${colIndex + 1}"]`,
-            )
-            rightPiece.style.borderLeft = 'none'
-          }
-        }
-
-        // 아래쪽 조각 체크
-        if (rowIndex < this.puzzlePattern.length - 1) {
-          const bottomColor = this.puzzlePattern[rowIndex + 1][colIndex]
-          if (color === bottomColor) {
-            currentPiece.style.borderBottom = 'none'
-            const bottomPiece = this.container.querySelector(
-              `[data-row="${rowIndex + 1}"][data-col="${colIndex}"]`,
-            )
-            bottomPiece.style.borderTop = 'none'
-          }
-        }
-
-        // 왼쪽, 위쪽도 체크
-        if (colIndex > 0) {
-          const leftColor = this.puzzlePattern[rowIndex][colIndex - 1]
-          if (color === leftColor) {
-            currentPiece.style.borderLeft = 'none'
-          }
-        }
-
-        if (rowIndex > 0) {
-          const topColor = this.puzzlePattern[rowIndex - 1][colIndex]
-          if (color === topColor) {
-            currentPiece.style.borderTop = 'none'
-          }
-        }
-      })
-    })
-  }
-
+/**
+ * 효과 관리 클래스 - 시각 효과 담당
+ */
+class EffectManager {
   createSparkles(element) {
     const rect = element.getBoundingClientRect()
     const centerX = rect.left + rect.width / 2
@@ -404,20 +160,297 @@ class GospelPentomino {
       light.remove()
     }, 2000)
   }
+}
+
+/**
+ * 퍼즐 렌더링 클래스 - 퍼즐 보드 렌더링 담당
+ */
+class PuzzleRenderer {
+  constructor(containerId, options) {
+    this.containerId = containerId
+    this.options = options
+    this.puzzlePattern = [
+      ['red', 'red', 'yellow', 'yellow', 'yellow', 'green'],
+      ['red', 'red', 'yellow', 'yellow', 'green', 'green'],
+      ['red', 'red', 'yellow', 'white', 'green', 'green'],
+      ['red', 'red', 'white', 'white', 'green', 'green'],
+      ['white', 'white', 'white', 'black', 'black', 'black'],
+      ['white', 'white', 'black', 'black', 'black', 'black'],
+    ]
+  }
+
+  render(container) {
+    container.innerHTML = `
+      <div class="gospel-pentomino-container">
+        <div class="gospel-pentomino-header">
+          <h1 class="gospel-pentomino-title">${this.options.title}</h1>
+          <div class="gospel-pentomino-verse">${this.options.verse}</div>
+        </div>
+
+        <div class="gospel-pentomino-frame">
+          <div class="gospel-pentomino-board" id="${this.containerId}-board" style="width: ${this.options.width}; height: ${this.options.height}">
+            ${this.createPuzzleBoard()}
+          </div>
+        </div>
+
+        <div class="gospel-pentomino-subtitle">${this.options.subtitle}</div>
+      </div>
+
+      <!-- 모달 다이얼로그 -->
+      <div id="${this.containerId}-modal" class="gospel-pentomino-modal">
+        <div class="gospel-pentomino-modal-content">
+          <span class="gospel-pentomino-close">&times;</span>
+          <div class="gospel-pentomino-color-indicator" id="${this.containerId}-colorIndicator"></div>
+          <h2 id="${this.containerId}-modalTitle">
+            <div class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</div>
+          </h2>
+          <p id="${this.containerId}-modalText"></p>
+          <div class="gospel-pentomino-bible-verse" id="${this.containerId}-bibleVerse"></div>
+        </div>
+      </div>
+    `
+  }
+
+  createPuzzleBoard() {
+    let boardHTML = ''
+    this.puzzlePattern.forEach((row, rowIndex) => {
+      row.forEach((color, colIndex) => {
+        boardHTML += `
+          <div class="gospel-pentomino-piece gospel-pentomino-${color}"
+               data-color="${color}"
+               data-row="${rowIndex}"
+               data-col="${colIndex}">
+          </div>
+        `
+      })
+    })
+    return boardHTML
+  }
+
+  removeSameColorBorders(container) {
+    this.puzzlePattern.forEach((row, rowIndex) => {
+      row.forEach((color, colIndex) => {
+        const currentPiece = container.querySelector(
+          `[data-row="${rowIndex}"][data-col="${colIndex}"]`,
+        )
+
+        // 오른쪽 조각 체크
+        if (colIndex < row.length - 1) {
+          const rightColor = this.puzzlePattern[rowIndex][colIndex + 1]
+          if (color === rightColor) {
+            currentPiece.style.borderRight = 'none'
+            const rightPiece = container.querySelector(
+              `[data-row="${rowIndex}"][data-col="${colIndex + 1}"]`,
+            )
+            rightPiece.style.borderLeft = 'none'
+          }
+        }
+
+        // 아래쪽 조각 체크
+        if (rowIndex < this.puzzlePattern.length - 1) {
+          const bottomColor = this.puzzlePattern[rowIndex + 1][colIndex]
+          if (color === bottomColor) {
+            currentPiece.style.borderBottom = 'none'
+            const bottomPiece = container.querySelector(
+              `[data-row="${rowIndex + 1}"][data-col="${colIndex}"]`,
+            )
+            bottomPiece.style.borderTop = 'none'
+          }
+        }
+
+        // 왼쪽, 위쪽도 체크
+        if (colIndex > 0) {
+          const leftColor = this.puzzlePattern[rowIndex][colIndex - 1]
+          if (color === leftColor) {
+            currentPiece.style.borderLeft = 'none'
+          }
+        }
+
+        if (rowIndex > 0) {
+          const topColor = this.puzzlePattern[rowIndex - 1][colIndex]
+          if (color === topColor) {
+            currentPiece.style.borderTop = 'none'
+          }
+        }
+      })
+    })
+  }
+}
+
+/**
+ * 메인 복음 펜토미노 컴포넌트 클래스 - 전체 제어 담당
+ */
+class GospelPentomino {
+  constructor(containerId, options = {}) {
+    this.containerId = containerId
+    this.container = document.getElementById(containerId)
+    this.options = {
+      title: options.title || '복음퍼즐-펜토미노',
+      subtitle: options.subtitle || '© Copyright is owned by 이도겸',
+      verse: options.verse || '"하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니" - 요한복음 3:16',
+      width: options.width || 'min(80vw, 80vh)',
+      height: options.height || 'min(80vw, 80vh)',
+      ...options,
+    }
+
+    this.selectedColor = null
+
+    // 모듈 인스턴스 생성
+    this.audioManager = new AudioManager()
+    this.effectManager = new EffectManager()
+    this.puzzleRenderer = new PuzzleRenderer(containerId, this.options)
+
+    this.colorMessages = {
+      red: {
+        title: '빨간색 - 예수님의 사랑과 희생',
+        text: '빨간색은 예수 그리스도께서 우리 죄를 위해 십자가에서 흘리신 보혈을 상징합니다. 하나님의 무한한 사랑이 이 색깔 안에 담겨있습니다.',
+        verse:
+          '"그가 찔림은 우리의 허물 때문이요 그가 상함은 우리의 죄악 때문이라 그가 징계를 받으므로 우리는 평화를 누리고 그가 채찍에 맞으므로 우리는 나음을 받았도다" - 이사야 53:5',
+      },
+      black: {
+        title: '검은색 - 죄와 어둠에서 벗어남',
+        text: '검은색은 우리 모두가 가지고 있던 죄와 영적 어둠을 나타냅니다. 하지만 예수님의 빛이 이 어둠을 이기셨습니다.',
+        verse:
+          '"모든 사람이 죄를 범하였으매 하나님의 영광에 이르지 못하더니 그리스도 예수 안에 있는 속량으로 말미암아 하나님의 은혜로 값없이 의롭다 하심을 얻은 자 되었느니라" - 로마서 3:23-24',
+      },
+      yellow: {
+        title: '노란색 - 천국과 하나님의 영광',
+        text: '노란색(금색)은 하나님의 영광과 천국의 찬란함을 상징합니다. 영원한 생명과 하나님의 임재를 나타냅니다.',
+        verse:
+          '"그 성은 해나 달의 비침이 쓸 데 없으니 이는 하나님의 영광이 비치고 어린 양이 그 등불이 되심이라" - 요한계시록 21:23',
+      },
+      green: {
+        title: '초록색 - 새 생명과 영적 성장',
+        text: '초록색은 그리스트 안에서 얻는 새 생명과 계속되는 영적 성장을 나타냅니다. 하나님의 말씀으로 자라가는 믿음을 상징합니다.',
+        verse:
+          '"그런즉 누구든지 그리스도 안에 있으면 새로운 피조물이라 이전 것은 지나갔으니 보라 새 것이 되었도다" - 고린도후서 5:17',
+      },
+      white: {
+        title: '흰색 - 순결과 구원의 완성',
+        text: '흰색은 예수님을 믿는 자가 받는 죄 사함과 순결함을 상징합니다. 하나님 앞에서 의롭게 여김 받는 상태를 나타냅니다.',
+        verse:
+          '"너희 죄가 주홍 같을지라도 눈과 같이 희어질 것이요 진홍 같이 붉을지라도 양털 같이 되리라" - 이사야 1:18',
+      },
+    }
+
+    this.init()
+  }
+
+  init() {
+    this.puzzleRenderer.render(this.container)
+    this.setupEventListeners()
+    this.puzzleRenderer.removeSameColorBorders(this.container)
+  }
+
+  setupEventListeners() {
+    // 조각 클릭 이벤트
+    const pieces = this.container.querySelectorAll('.gospel-pentomino-piece')
+    pieces.forEach((piece) => {
+      piece.addEventListener('click', (e) => this.handlePieceClick(e))
+      piece.addEventListener('mouseenter', (e) => this.effectManager.createSparkles(e.target))
+    })
+
+    // 모달 관련 이벤트
+    const modal = document.getElementById(`${this.containerId}-modal`)
+    const closeBtn = this.container.querySelector('.gospel-pentomino-close')
+    const speakerBtn = document.getElementById(`${this.containerId}-speaker`)
+
+    closeBtn.addEventListener('click', () => this.closeModal())
+    speakerBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.handleSpeakerClick()
+    })
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        this.closeModal()
+      }
+    })
+
+    // ESC 키로 모달 닫기
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeModal()
+      }
+    })
+  }
+
+  handleSpeakerClick() {
+    const text = document.getElementById(`${this.containerId}-modalText`).textContent
+    const speaker = document.getElementById(`${this.containerId}-speaker`)
+    this.audioManager.toggleSpeech(text, speaker)
+  }
+
+  handlePieceClick(event) {
+    const element = event.currentTarget
+    const color = element.dataset.color
+
+    // 이전 선택 제거
+    this.container.querySelectorAll('.gospel-pentomino-piece').forEach((piece) => {
+      piece.classList.remove('active')
+    })
+
+    // 같은 색깔 조각들 하이라이트
+    this.container.querySelectorAll(`.gospel-pentomino-${color}`).forEach((piece) => {
+      piece.classList.add('active')
+    })
+
+    this.selectedColor = color
+    this.showColorModal(color)
+    this.effectManager.createBlessedLight(element)
+  }
+
+  showColorModal(color) {
+    const modal = document.getElementById(`${this.containerId}-modal`)
+    const indicator = document.getElementById(`${this.containerId}-colorIndicator`)
+    const title = document.getElementById(`${this.containerId}-modalTitle`)
+    const text = document.getElementById(`${this.containerId}-modalText`)
+    const verse = document.getElementById(`${this.containerId}-bibleVerse`)
+
+    const message = this.colorMessages[color]
+    if (message) {
+      indicator.className = `gospel-pentomino-color-indicator gospel-pentomino-${color}`
+      title.innerHTML =
+        message.title +
+        `<span class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</span>`
+      text.textContent = message.text
+      verse.textContent = message.verse
+      modal.style.display = 'block'
+
+      // 스피커 버튼 이벤트 재설정
+      const newSpeaker = document.getElementById(`${this.containerId}-speaker`)
+      newSpeaker.addEventListener('click', (e) => {
+        e.stopPropagation()
+        this.handleSpeakerClick()
+      })
+    }
+  }
+
+  closeModal() {
+    const modal = document.getElementById(`${this.containerId}-modal`)
+    modal.style.display = 'none'
+
+    // 음성 재생 중이면 중지
+    this.audioManager.stop()
+
+    // 선택 효과 제거
+    this.container.querySelectorAll('.gospel-pentomino-piece').forEach((piece) => {
+      piece.classList.remove('active')
+    })
+
+    this.selectedColor = null
+  }
 
   // 공개 메서드들
   destroy() {
-    if (this.speechSynthesis.speaking) {
-      this.speechSynthesis.cancel()
-    }
+    this.audioManager.stop()
     this.container.innerHTML = ''
   }
 
   updateOptions(newOptions) {
     this.options = { ...this.options, ...newOptions }
-    this.render()
-    this.setupEventListeners()
-    this.removeSameColorBorders()
+    this.puzzleRenderer.options = this.options
+    this.init()
   }
 
   highlightColor(color) {
@@ -436,9 +469,6 @@ class GospelPentomino {
 
 // 사용 예제
 document.addEventListener('DOMContentLoaded', function () {
-  // 기본 사용법
-  const pentomino1 = new GospelPentomino('app')
-
   // 음성 기능을 위한 초기화
   if ('speechSynthesis' in window) {
     // 음성 목록 로드
@@ -533,7 +563,7 @@ body::before {
 }
 
 .gospel-pentomino-title {
-  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-size: clamp(4rem, 5vw, 4.5rem);
   color: #ffd700;
   text-shadow:
     0 0 15px rgba(255, 215, 0, 0.8),
@@ -542,8 +572,8 @@ body::before {
     0 0 60px rgba(255, 215, 0, 0.2);
   margin-bottom: 10px;
   animation: holyGlow 5s ease-in-out infinite alternate;
-  font-weight: 200;
-  letter-spacing: 3px;
+  font-weight: 700;
+  letter-spacing: 5px;
   text-transform: uppercase;
 }
 
@@ -567,10 +597,10 @@ body::before {
 }
 
 .gospel-pentomino-subtitle {
-  font-size: clamp(0.9rem, 2.5vw, 1.3rem);
+  font-size: clamp(1.5rem, 2.5vw, 1.5rem);
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
-  margin-bottom: 8px;
+  margin-top: 8px;
   font-weight: 200;
   letter-spacing: 1px;
 }
@@ -584,25 +614,26 @@ body::before {
   letter-spacing: 0.5px;
 }
 
+/* 나무 색상 프레임 */
 .gospel-pentomino-frame {
   position: relative;
   padding: 20px;
   background:
-    linear-gradient(145deg, #2c2c2c, #1a1a1a),
+    linear-gradient(145deg, #8b4513, #a0522d, #8b4513),
     linear-gradient(
       45deg,
-      rgba(255, 215, 0, 0.1) 0%,
-      rgba(255, 255, 255, 0.05) 50%,
-      rgba(255, 215, 0, 0.1) 100%
+      rgba(139, 69, 19, 0.9) 0%,
+      rgba(160, 82, 45, 0.7) 50%,
+      rgba(139, 69, 19, 0.9) 100%
     );
   border-radius: 20px;
   box-shadow:
     0 25px 80px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-    0 0 60px rgba(255, 215, 0, 0.15);
+    inset 0 1px 0 rgba(205, 133, 63, 0.3),
+    inset 0 -1px 0 rgba(92, 51, 23, 0.5),
+    0 0 60px rgba(139, 69, 19, 0.25);
   position: relative;
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  border: 2px solid rgba(160, 82, 45, 0.4);
 }
 
 .gospel-pentomino-frame::before {
@@ -616,9 +647,9 @@ body::before {
   border-radius: 15px;
   background: linear-gradient(
       45deg,
-      rgba(255, 215, 0, 0.3),
-      rgba(255, 255, 255, 0.1),
-      rgba(255, 215, 0, 0.3)
+      rgba(205, 133, 63, 0.4),
+      rgba(160, 82, 45, 0.2),
+      rgba(205, 133, 63, 0.4)
     )
     border-box;
   -webkit-mask:
@@ -642,23 +673,23 @@ body::before {
   border-radius: 22px;
   background: linear-gradient(
     45deg,
-    rgba(255, 215, 0, 0.4) 0%,
-    rgba(255, 255, 255, 0.2) 25%,
-    rgba(255, 215, 0, 0.4) 50%,
-    rgba(255, 255, 255, 0.2) 75%,
-    rgba(255, 215, 0, 0.4) 100%
+    rgba(139, 69, 19, 0.6) 0%,
+    rgba(205, 133, 63, 0.4) 25%,
+    rgba(139, 69, 19, 0.6) 50%,
+    rgba(205, 133, 63, 0.4) 75%,
+    rgba(139, 69, 19, 0.6) 100%
   );
   z-index: -1;
-  animation: luxuryGlow 6s ease-in-out infinite;
+  animation: woodGlow 6s ease-in-out infinite;
 }
 
-@keyframes luxuryGlow {
+@keyframes woodGlow {
   0%,
   100% {
-    opacity: 0.3;
+    opacity: 0.4;
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.8;
   }
 }
 
@@ -679,8 +710,8 @@ body::before {
   border-radius: 15px;
   position: relative;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(7, 1fr);
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(6, 1fr);
   gap: 0px;
   overflow: hidden;
   box-shadow:
@@ -875,7 +906,7 @@ body::before {
 }
 
 .gospel-pentomino-color-indicator {
-  width: 100px;
+  width: 60px;
   height: 60px;
   border-radius: 15px;
   margin: 0 auto 25px;
