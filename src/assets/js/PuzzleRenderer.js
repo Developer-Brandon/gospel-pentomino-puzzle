@@ -6,10 +6,10 @@ export class PuzzleRenderer {
     this.containerId = containerId
     this.options = options
     this.puzzlePattern = [
-      ['red', 'red', 'yellow', 'yellow', 'yellow', 'green'],
-      ['red', 'red', 'yellow', 'yellow', 'green', 'green'],
-      ['red', 'red', 'yellow', 'white', 'green', 'green'],
-      ['red', 'red', 'white', 'white', 'green', 'green'],
+      ['red', 'red', 'red', 'red', 'red', 'green'],
+      ['red', 'yellow', 'red', 'white', 'green', 'green'],
+      ['yellow', 'yellow', 'yellow', 'white', 'green', 'green'],
+      ['white', 'yellow', 'white', 'white', 'green', 'green'],
       ['white', 'white', 'white', 'black', 'black', 'black'],
       ['white', 'white', 'black', 'black', 'black', 'black'],
     ]
