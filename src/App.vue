@@ -37,6 +37,7 @@ class GospelPentomino {
     }
 
     this.selectedColor = null
+    this.isMobileChrome = /Android.*Chrome/.test(navigator.userAgent)
 
     // 모듈 인스턴스 생성
     this.audioManager = new AudioManager()
@@ -158,7 +159,19 @@ class GospelPentomino {
         `<span class="gospel-pentomino-speaker" id="${this.containerId}-speaker">🔊</span>`
       text.textContent = message.text
       verse.textContent = message.verse
-      modal.style.display = 'block'
+
+      // 모바일 크롬 최적화
+      if (this.isMobileChrome) {
+        modal.style.animation = 'none'
+        modal.style.display = 'block'
+
+        requestAnimationFrame(() => {
+          const content = modal.querySelector('.gospel-pentomino-modal-content')
+          content.style.animation = 'mobileModalFadeIn 0.2s ease-out'
+        })
+      } else {
+        modal.style.display = 'block'
+      }
 
       // 스피커 버튼 이벤트 재설정
       const newSpeaker = document.getElementById(`${this.containerId}-speaker`)
@@ -386,6 +399,10 @@ document.addEventListener('DOMContentLoaded', function () {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   overflow: hidden;
   border: 0.1px solid rgba(0, 0, 0, 0.05);
+  /* 하드웨어 가속 적용 */
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .gospel-pentomino-piece::before {
@@ -407,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 .gospel-pentomino-piece:hover {
-  transform: scale(1.03);
+  transform: scale(1.03) translateZ(0);
   z-index: 100;
   box-shadow:
     0 0 40px rgba(255, 215, 0, 0.8),
@@ -463,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
     inset 0 -2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* 모달 스타일 */
+/* 모달 스타일 - 안드로이드 크롬 최적화 */
 .gospel-pentomino-modal {
   display: none;
   position: fixed;
@@ -472,9 +489,13 @@ document.addEventListener('DOMContentLoaded', function () {
   top: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  animation: modalFadeIn 0.5s ease;
+  /* backdrop-filter 제거하고 불투명도 증가 */
+  background: rgba(0, 0, 0, 0.9);
+  animation: modalFadeIn 0.3s ease;
+  /* 하드웨어 가속 적용 */
+  will-change: opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .gospel-pentomino-modal-content {
@@ -487,11 +508,15 @@ document.addEventListener('DOMContentLoaded', function () {
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  animation: modalSlideIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.3),
     0 0 50px rgba(255, 215, 0, 0.2);
   border: 2px solid rgba(255, 215, 0, 0.3);
+  /* 하드웨어 가속 적용 */
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
 .gospel-pentomino-close {
@@ -594,6 +619,63 @@ document.addEventListener('DOMContentLoaded', function () {
 .gospel-pentomino-speaker.playing {
   color: #ffd700;
   animation: speakerPulse 1s ease-in-out infinite;
+}
+
+/* 모바일 전용 애니메이션 */
+@keyframes mobileModalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+/* 단순화된 애니메이션 */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translate3d(0, -20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+/* 모바일 최적화 - 안드로이드 크롬 전용 */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 1) {
+  .gospel-pentomino-modal {
+    /* 모바일에서는 더 간단한 배경 */
+    background: rgba(0, 0, 0, 0.95);
+    animation: none;
+  }
+
+  .gospel-pentomino-modal-content {
+    /* 모바일에서는 애니메이션 단순화 */
+    animation: mobileModalFadeIn 0.2s ease-out;
+    transform: translate3d(0, 0, 0);
+  }
+
+  /* 모바일에서는 그라디언트 단순화 */
+  .gospel-pentomino-piece {
+    transition: transform 0.2s ease;
+  }
+
+  .gospel-pentomino-piece:hover {
+    transform: scale(1.02) translateZ(0);
+  }
 }
 
 @media (max-width: 480px) {
