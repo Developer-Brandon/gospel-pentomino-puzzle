@@ -469,6 +469,9 @@ class GospelPentomino {
 
 // 사용 예제
 document.addEventListener('DOMContentLoaded', function () {
+  // 기본 사용법
+  const pentomino1 = new GospelPentomino('app')
+
   // 음성 기능을 위한 초기화
   if ('speechSynthesis' in window) {
     // 음성 목록 로드
