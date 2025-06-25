@@ -160,15 +160,21 @@ class GospelPentomino {
       text.textContent = message.text
       verse.textContent = message.verse
 
-      // 모바일 크롬 최적화
+      // 모바일 크롬 최적화 - 모든 애니메이션 비활성화
       if (this.isMobileChrome) {
+        // 모든 애니메이션 강제 비활성화
         modal.style.animation = 'none'
-        modal.style.display = 'block'
+        modal.classList.add('mobile-optimized')
 
-        requestAnimationFrame(() => {
-          const content = modal.querySelector('.gospel-pentomino-modal-content')
-          content.style.animation = 'mobileModalFadeIn 0.2s ease-out'
-        })
+        const content = modal.querySelector('.gospel-pentomino-modal-content')
+        content.style.animation = 'none'
+        content.classList.add('mobile-optimized')
+
+        const colorIndicator = modal.querySelector('.gospel-pentomino-color-indicator')
+        colorIndicator.style.animation = 'none'
+        colorIndicator.classList.add('mobile-optimized')
+
+        modal.style.display = 'block'
       } else {
         modal.style.display = 'block'
       }
