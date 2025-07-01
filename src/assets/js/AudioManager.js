@@ -1,130 +1,96 @@
+/* global responsiveVoice */
 /**
- * 오디오 관리 클래스 - TTS 기능 담당 (크로스브라우저 최적화)
+ * 오디오 관리 클래스 - ResponsiveVoice 사용
  */
 export class AudioManager {
   constructor() {
-    this.speechSynthesis = window.speechSynthesis
-    this.currentUtterance = null
     this.isPlaying = false
-    this.preferredVoice = null
-    this.initializeVoices()
+    this.checkResponsiveVoice()
   }
 
-  initializeVoices() {
-    // 음성 목록이 로드될 때까지 대기
-    const loadVoices = () => {
-      const voices = this.speechSynthesis.getVoices()
-      if (voices.length > 0) {
-        this.preferredVoice = this.selectBestFemaleVoice(voices)
-      }
+  checkResponsiveVoice() {
+    // ResponsiveVoice 로드 확인
+    if (typeof responsiveVoice === 'undefined') {
+      console.warn('ResponsiveVoice not loaded, falling back to Web Speech API')
+      this.useWebSpeech = true
+    } else {
+      this.useWebSpeech = false
     }
-
-    loadVoices()
-    if (this.speechSynthesis.onvoiceschanged !== undefined) {
-      this.speechSynthesis.onvoiceschanged = loadVoices
-    }
-  }
-
-  selectBestFemaleVoice(voices) {
-    // 1순위: 한국어 여성 음성
-    const koreanFemaleVoices = voices.filter(
-      (voice) =>
-        voice.lang.includes('ko') &&
-        (voice.name.includes('Female') ||
-          voice.name.includes('여') ||
-          voice.name.includes('Woman') ||
-          voice.name.includes('Girl') ||
-          voice.name.includes('Yuna') ||
-          voice.name.includes('Seoyeon') ||
-          voice.name.includes('Heami')),
-    )
-
-    if (koreanFemaleVoices.length > 0) {
-      // 더 자연스러운 음성 우선 선택
-      const premium = koreanFemaleVoices.find(
-        (voice) =>
-          voice.name.includes('Premium') ||
-          voice.name.includes('Enhanced') ||
-          voice.name.includes('Natural'),
-      )
-      return premium || koreanFemaleVoices[0]
-    }
-
-    // 2순위: 한국어 음성 (성별 불명)
-    const koreanVoices = voices.filter((voice) => voice.lang.includes('ko'))
-    if (koreanVoices.length > 0) {
-      return koreanVoices[0]
-    }
-
-    // 3순위: 영어 여성 음성
-    const englishFemaleVoices = voices.filter(
-      (voice) =>
-        voice.lang.includes('en') &&
-        (voice.name.includes('Female') ||
-          voice.name.includes('Woman') ||
-          voice.name.includes('Samantha') ||
-          voice.name.includes('Victoria') ||
-          voice.name.includes('Zira')),
-    )
-
-    if (englishFemaleVoices.length > 0) {
-      return englishFemaleVoices[0]
-    }
-
-    // 4순위: 기본 음성
-    return voices[0] || null
   }
 
   toggleSpeech(text, speakerElement) {
-    if (this.speechSynthesis.speaking) {
-      this.speechSynthesis.cancel()
+    if (this.isPlaying) {
+      this.stop()
       this.updateSpeakerUI(speakerElement, false)
       return
     }
 
-    const fullText = text
-    this.currentUtterance = new SpeechSynthesisUtterance(fullText)
+    if (!this.useWebSpeech && typeof responsiveVoice !== 'undefined') {
+      // ResponsiveVoice 사용 (우선순위)
+      this.speakWithResponsiveVoice(text, speakerElement)
+    } else {
+      // 기본 Web Speech API 사용 (백업)
+      this.speakWithWebSpeech(text, speakerElement)
+    }
+  }
 
-    // 음성 설정
-    this.configureSpeech()
+  speakWithResponsiveVoice(text, speakerElement) {
+    this.isPlaying = true
+    this.updateSpeakerUI(speakerElement, true)
 
-    // 이벤트 핸들러
-    this.currentUtterance.onstart = () => {
+    // ResponsiveVoice 여성 한국어 음성 사용
+    responsiveVoice.speak(text, 'Korean Female', {
+      pitch: 1.1,
+      rate: 0.9,
+      volume: 1,
+      onstart: () => {
+        this.isPlaying = true
+        this.updateSpeakerUI(speakerElement, true)
+      },
+      onend: () => {
+        this.isPlaying = false
+        this.updateSpeakerUI(speakerElement, false)
+      },
+      onerror: () => {
+        console.warn('ResponsiveVoice error, trying Web Speech API')
+        this.speakWithWebSpeech(text, speakerElement)
+      },
+    })
+  }
+
+  speakWithWebSpeech(text, speakerElement) {
+    if (!window.speechSynthesis) return
+
+    const utterance = new SpeechSynthesisUtterance(text)
+
+    // 한국어 여성 음성 찾기
+    const voices = speechSynthesis.getVoices()
+    const femaleVoice =
+      voices.find(
+        (voice) =>
+          voice.lang.includes('ko') && (voice.name.includes('Female') || voice.name.includes('여')),
+      ) || voices.find((voice) => voice.lang.includes('ko'))
+
+    if (femaleVoice) {
+      utterance.voice = femaleVoice
+    }
+
+    utterance.lang = 'ko-KR'
+    utterance.pitch = 1.1
+    utterance.rate = 0.9
+    utterance.volume = 1
+
+    utterance.onstart = () => {
       this.isPlaying = true
       this.updateSpeakerUI(speakerElement, true)
     }
 
-    this.currentUtterance.onend = () => {
+    utterance.onend = () => {
       this.isPlaying = false
       this.updateSpeakerUI(speakerElement, false)
     }
 
-    this.currentUtterance.onerror = (error) => {
-      console.warn('TTS Error:', error)
-      this.isPlaying = false
-      this.updateSpeakerUI(speakerElement, false)
-    }
-
-    // 크롬에서 긴 텍스트 처리를 위한 지연
-    setTimeout(() => {
-      this.speechSynthesis.speak(this.currentUtterance)
-    }, 100)
-  }
-
-  configureSpeech() {
-    // 여성 음성에 맞는 설정
-    this.currentUtterance.pitch = 1.1 // 약간 높은 톤
-    this.currentUtterance.rate = 0.85 // 약간 느리게 (더 명확하게)
-    this.currentUtterance.volume = 1.0
-
-    // 선택된 음성 적용
-    if (this.preferredVoice) {
-      this.currentUtterance.voice = this.preferredVoice
-      this.currentUtterance.lang = this.preferredVoice.lang
-    } else {
-      // 대체 설정
-      this.currentUtterance.lang = 'ko-KR'
-    }
+    speechSynthesis.speak(utterance)
   }
 
   updateSpeakerUI(speakerElement, isPlaying) {
@@ -138,8 +104,16 @@ export class AudioManager {
   }
 
   stop() {
-    if (this.speechSynthesis.speaking) {
-      this.speechSynthesis.cancel()
+    this.isPlaying = false
+
+    // ResponsiveVoice 중지
+    if (typeof responsiveVoice !== 'undefined') {
+      responsiveVoice.cancel()
+    }
+
+    // Web Speech API 중지
+    if (window.speechSynthesis) {
+      speechSynthesis.cancel()
     }
   }
 }
