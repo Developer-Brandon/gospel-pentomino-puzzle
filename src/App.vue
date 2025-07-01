@@ -65,7 +65,7 @@ class GospelPentomino {
       },
       green: {
         title: '새 생명과 영적 성장',
-        text: '초록색은 그리스트 안에서 얻는 새 생명과 계속되는 영적 성장을 나타냅니다. 하나님의 말씀으로 자라가는 믿음을 상징합니다.',
+        text: '초록색은 그리스도 안에서 얻는 새 생명과 계속되는 영적 성장을 나타냅니다. 하나님의 말씀으로 자라가는 믿음을 상징합니다.',
         verse:
           '"그런즉 누구든지 그리스도 안에 있으면 새로운 피조물이라 이전 것은 지나갔으니 보라 새 것이 되었도다" - 고린도후서 5:17',
       },
@@ -486,7 +486,7 @@ document.addEventListener('DOMContentLoaded', function () {
     inset 0 -2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* 모달 스타일 - 안드로이드 크롬 최적화 */
+/* 모달 스타일 - 크롬 최적화 */
 .gospel-pentomino-modal {
   display: none;
   position: fixed;
@@ -495,13 +495,15 @@ document.addEventListener('DOMContentLoaded', function () {
   top: 0;
   width: 100%;
   height: 100%;
-  /* backdrop-filter 제거하고 불투명도 증가 */
+  /* backdrop-filter 제거하고 단순한 배경 사용 */
   background: rgba(0, 0, 0, 0.9);
   animation: modalFadeIn 0.3s ease;
-  /* 하드웨어 가속 적용 */
+  /* 하드웨어 가속 강제 적용 */
   will-change: opacity;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .gospel-pentomino-modal-content {
@@ -514,15 +516,16 @@ document.addEventListener('DOMContentLoaded', function () {
   max-height: 90vh;
   overflow-y: auto;
   position: relative;
-  animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.3),
-    0 0 50px rgba(255, 215, 0, 0.2);
+  animation: modalSlideIn 0.3s ease-out;
+  /* 크롬에서 문제되는 복잡한 box-shadow 단순화 */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   border: 2px solid rgba(255, 215, 0, 0.3);
-  /* 하드웨어 가속 적용 */
+  /* 하드웨어 가속 강제 적용 */
   will-change: transform, opacity;
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .gospel-pentomino-close {
@@ -661,26 +664,36 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 /* 모바일 최적화 - 안드로이드 크롬 전용 */
-@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 1) {
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
   .gospel-pentomino-modal {
-    /* 모바일에서는 더 간단한 배경 */
-    background: rgba(0, 0, 0, 0.95);
-    animation: none;
+    /* 크롬에서 backdrop-filter 완전 제거 */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
-  .gospel-pentomino-modal-content {
-    /* 모바일에서는 애니메이션 단순화 */
-    animation: mobileModalFadeIn 0.2s ease-out;
-    transform: translate3d(0, 0, 0);
-  }
-
-  /* 모바일에서는 그라디언트 단순화 */
   .gospel-pentomino-piece {
-    transition: transform 0.2s ease;
+    /* 크롬에서 변환 최적화 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
-  .gospel-pentomino-piece:hover {
-    transform: scale(1.02) translateZ(0);
+  /* 복잡한 그라디언트 단순화 */
+  .gospel-pentomino-red {
+    background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%);
+  }
+  .gospel-pentomino-yellow {
+    background: linear-gradient(135deg, #ffeb3b 0%, #f57f17 100%);
+  }
+  .gospel-pentomino-green {
+    background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+  }
+  .gospel-pentomino-black {
+    background: linear-gradient(135deg, #424242 0%, #212121 100%);
+  }
+  .gospel-pentomino-white {
+    background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
   }
 }
 
