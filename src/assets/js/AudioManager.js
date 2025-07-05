@@ -1,57 +1,153 @@
 /**
- * Edge 완전 호환 일본인 여성 목소리 AudioManager
- * Edge의 특별한 제약사항 모두 해결!
+ * 모바일 크롬 "피리오도" 문제 완전 해결!
+ * 모바일 환경에서 언어 불일치로 인한 이상한 소리 방지
  */
 export class AudioManager {
   constructor() {
     this.isPlaying = false
     this.currentAudio = null
     this.isEdge = navigator.userAgent.includes('Edge') || navigator.userAgent.includes('Edg/')
-    this.initializeForEdge()
+    this.isMobileSafari = this.detectMobileSafari()
+    this.isMobileChrome = this.detectMobileChrome() // 🆕 모바일 크롬 감지 추가
+    this.isMobile = this.detectMobile() // 🆕 전체 모바일 감지
+    this.initializeForDevice()
   }
 
-  async initializeForEdge() {
-    console.log('🌐 브라우저 감지:', this.isEdge ? 'Microsoft Edge' : '기타 브라우저')
+  detectMobileSafari() {
+    const ua = navigator.userAgent
+    const isMobile = /iPhone|iPad|iPod/i.test(ua)
+    const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua)
+    return isMobile && isSafari
+  }
 
-    if (this.isEdge) {
-      console.log('🔧 Edge 전용 최적화 모드 활성화')
+  // 🆕 모바일 크롬 감지 (피리오도 문제 해결용)
+  detectMobileChrome() {
+    const ua = navigator.userAgent
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(ua)
+    const isChrome = /Chrome|CriOS/i.test(ua) && !/Edg|Edge/i.test(ua)
 
-      // Edge에서는 음성 목록 로딩이 느릴 수 있음
+    console.log('📱 모바일 크롬 감지:', isMobile && isChrome ? 'YES' : 'NO')
+    return isMobile && isChrome
+  }
+
+  // 🆕 전체 모바일 환경 감지
+  detectMobile() {
+    const ua = navigator.userAgent
+    const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)
+
+    console.log('📱 모바일 환경:', isMobile ? 'YES' : 'NO')
+    console.log('🔍 User Agent:', ua)
+
+    return isMobile
+  }
+
+  async initializeForDevice() {
+    if (this.isMobileSafari) {
+      console.log('📱 모바일 사파리 전용 최적화 모드')
+      await this.waitForMobileSafariVoices()
+    } else if (this.isMobileChrome) {
+      console.log('📱 모바일 크롬 전용 최적화 모드 (피리오도 방지!)') // 🆕
+      await this.waitForMobileChromeVoices()
+    } else if (this.isMobile) {
+      console.log('📱 기타 모바일 브라우저 최적화 모드') // 🆕
+      await this.waitForMobileVoices()
+    } else if (this.isEdge) {
+      console.log('🌐 Edge 전용 최적화 모드')
       await this.waitForEdgeVoices()
     } else {
-      // 다른 브라우저용 일반 초기화
+      console.log('💻 데스크톱 브라우저 모드')
       await this.waitForVoices()
     }
 
-    console.log('🎵 일본인 여성 목소리 준비 완료!')
+    // 🆕 한국어 음성 강제 사용 알림
+    if (this.isMobileChrome || this.isMobile) {
+      console.log('🎵 모바일 환경: 한국어 음성으로 안전 재생!')
+    } else {
+      console.log('🎵 일본인 여성 목소리 준비 완료!')
+    }
   }
 
-  async waitForEdgeVoices() {
-    // Edge 전용 음성 로딩 로직
+  async waitForMobileSafariVoices() {
+    console.log('📱 모바일 사파리 음성 로딩 중...')
+    let attempts = 0
+    const maxAttempts = 15
+
+    while (attempts < maxAttempts) {
+      const voices = speechSynthesis.getVoices()
+      if (voices.length > 0) {
+        console.log(`✅ 모바일 사파리에서 ${voices.length}개 음성 로드 완료`)
+        const koreanVoices = voices.filter((v) => v.lang.includes('ko'))
+        console.log('🇰🇷 한국어 음성 수:', koreanVoices.length)
+        return voices
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      attempts++
+      console.log(`📱 모바일 사파리 음성 로딩 중... (${attempts}/${maxAttempts})`)
+    }
+    console.warn('⚠️ 모바일 사파리에서 음성 로딩 시간 초과')
+    return []
+  }
+
+  // 🆕 모바일 크롬 전용 음성 로딩
+  async waitForMobileChromeVoices() {
+    console.log('📱 모바일 크롬 음성 로딩 중... (피리오도 방지 모드)')
+    let attempts = 0
+    const maxAttempts = 12 // 모바일이므로 좀 더 여유롭게
+
+    while (attempts < maxAttempts) {
+      const voices = speechSynthesis.getVoices()
+      if (voices.length > 0) {
+        console.log(`✅ 모바일 크롬에서 ${voices.length}개 음성 로드 완료`)
+
+        // 한국어 음성 우선 확인 (피리오도 방지)
+        const koreanVoices = voices.filter((v) => v.lang.includes('ko'))
+        const japaneseVoices = voices.filter((v) => v.lang.includes('ja'))
+
+        console.log('🇰🇷 한국어 음성 수:', koreanVoices.length)
+        console.log('🇯🇵 일본어 음성 수:', japaneseVoices.length, '(사용 안 함 - 피리오도 방지)')
+
+        return voices
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400))
+      attempts++
+      console.log(`📱 모바일 크롬 음성 로딩 중... (${attempts}/${maxAttempts})`)
+    }
+    console.warn('⚠️ 모바일 크롬에서 음성 로딩 시간 초과')
+    return []
+  }
+
+  // 🆕 기타 모바일 브라우저용
+  async waitForMobileVoices() {
+    console.log('📱 모바일 브라우저 음성 로딩 중...')
     let attempts = 0
     const maxAttempts = 10
 
     while (attempts < maxAttempts) {
       const voices = speechSynthesis.getVoices()
-
       if (voices.length > 0) {
-        console.log(`✅ Edge에서 ${voices.length}개 음성 로드 완료 (${attempts + 1}번째 시도)`)
+        console.log(`✅ 모바일 브라우저에서 ${voices.length}개 음성 로드 완료`)
         return voices
       }
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      attempts++
+    }
+    return []
+  }
 
-      // Edge에서는 짧은 간격으로 재시도
+  async waitForEdgeVoices() {
+    let attempts = 0
+    const maxAttempts = 10
+
+    while (attempts < maxAttempts) {
+      const voices = speechSynthesis.getVoices()
+      if (voices.length > 0) return voices
       await new Promise((resolve) => setTimeout(resolve, 200))
       attempts++
-
-      console.log(`🔄 Edge 음성 로딩 중... (${attempts}/${maxAttempts})`)
     }
-
-    console.warn('⚠️ Edge에서 음성 로딩 시간 초과')
     return []
   }
 
   async waitForVoices() {
-    // 일반 브라우저용 음성 로딩
     if (speechSynthesis.getVoices().length === 0) {
       await new Promise((resolve) => {
         speechSynthesis.onvoiceschanged = resolve
@@ -67,7 +163,6 @@ export class AudioManager {
       return
     }
 
-    // Edge든 아니든 Web Speech API 사용
     this.speakWithWebSpeech(text, speakerElement)
   }
 
@@ -79,73 +174,151 @@ export class AudioManager {
     }
 
     try {
-      // Edge에서는 특별한 중지 처리 필요
-      this.edgeSafeStop()
-
+      this.safeStop()
       const utterance = new SpeechSynthesisUtterance(text)
 
-      // Edge 전용 음성 선택
-      const selectedVoice = this.isEdge ? this.selectEdgeVoice() : this.selectGeneralVoice()
+      // 🆕 디바이스별 음성 선택 (모바일 크롬 대응)
+      const selectedVoice = this.selectVoiceForDevice()
 
       if (selectedVoice) {
         utterance.voice = selectedVoice
         console.log('🎵 선택된 음성:', selectedVoice.name, `(${selectedVoice.lang})`)
-      } else {
-        console.log('🎵 기본 음성 사용')
       }
 
-      // Edge 전용 음성 설정
-      this.setupEdgeVoiceStyle(utterance, selectedVoice)
-
-      // 이벤트 리스너 설정
+      this.setupVoiceForDevice(utterance, selectedVoice)
       this.setupUtteranceEvents(utterance, speakerElement)
-
-      // Edge 전용 안전한 재생
-      this.edgeSafeSpeak(utterance)
+      this.safeSpeak(utterance)
     } catch (error) {
       console.error('음성 재생 오류:', error)
       this.handleSpeechError(speakerElement)
     }
   }
 
-  selectEdgeVoice() {
+  selectVoiceForDevice() {
     const voices = speechSynthesis.getVoices()
-    console.log('🔍 Edge에서 음성 검색 중...', voices.length, '개 음성 사용 가능')
 
-    // Edge에서 한국어/일본어 음성 찾기 (우선순위별)
+    if (this.isMobileSafari) {
+      return this.selectMobileSafariVoice(voices)
+    } else if (this.isMobileChrome) {
+      // 🆕 모바일 크롬 전용 음성 선택 (피리오도 방지)
+      return this.selectMobileChromeVoice(voices)
+    } else if (this.isMobile) {
+      // 🆕 기타 모바일 환경
+      return this.selectMobileVoice(voices)
+    } else if (this.isEdge) {
+      return this.selectEdgeVoice(voices)
+    } else {
+      return this.selectDesktopVoice(voices) // 🆕 데스크톱 전용으로 분리
+    }
+  }
+
+  selectMobileSafariVoice(voices) {
+    console.log('📱 모바일 사파리 전용 음성 선택')
+
     const priorities = [
-      // 1순위: Microsoft 한국어 여성 음성
-      (voice) =>
-        voice.name.includes('Microsoft') && voice.lang.includes('ko') && this.isFemaleVoice(voice),
-      // 2순위: 한국어 여성 음성
       (voice) => voice.lang.includes('ko') && this.isFemaleVoice(voice),
-      // 3순위: Microsoft 일본어 음성
-      (voice) => voice.name.includes('Microsoft') && voice.lang.includes('ja'),
-      // 4순위: 일본어 음성
-      (voice) => voice.lang.includes('ja'),
-      // 5순위: 한국어 음성 (성별 무관)
       (voice) => voice.lang.includes('ko'),
-      // 6순위: Microsoft 영어 여성 음성
-      (voice) =>
-        voice.name.includes('Microsoft') && voice.lang.includes('en') && this.isFemaleVoice(voice),
-      // 7순위: 아무 음성
+      (voice) => voice.lang.includes('en') && this.isFemaleVoice(voice),
+      (voice) => voice.lang.includes('en'),
       (voice) => true,
     ]
 
     for (const condition of priorities) {
       const voice = voices.find(condition)
       if (voice) {
-        console.log('✅ Edge 음성 선택 완료:', voice.name)
+        console.log('✅ 모바일 사파리 음성 선택:', voice.name, `(${voice.lang})`)
+        return voice
+      }
+    }
+    return null
+  }
+
+  // 🆕 모바일 크롬 전용 음성 선택 (피리오도 방지!)
+  selectMobileChromeVoice(voices) {
+    console.log('📱 모바일 크롬 전용 음성 선택 (피리오도 방지 모드)')
+
+    // ⚠️ 중요: 모바일 크롬에서는 한국어 음성만 사용!
+    // 일본어 음성으로 한국어 텍스트 읽으면 "피리오도" 등 이상한 소리 발생
+    const priorities = [
+      // 1순위: 한국어 여성 음성 (Google 한국어 우선)
+      (voice) =>
+        voice.name.includes('Google') && voice.lang.includes('ko') && this.isFemaleVoice(voice),
+      // 2순위: 한국어 여성 음성 (전체)
+      (voice) => voice.lang.includes('ko') && this.isFemaleVoice(voice),
+      // 3순위: 한국어 음성 (성별 무관)
+      (voice) => voice.lang.includes('ko'),
+      // 4순위: 영어 여성 음성 (한국어 없을 때만)
+      (voice) => voice.lang.includes('en') && this.isFemaleVoice(voice),
+      // 5순위: 영어 음성
+      (voice) => voice.lang.includes('en'),
+      // 6순위: 아무 음성 (일본어 제외!)
+      (voice) => !voice.lang.includes('ja'), // 🚫 일본어 음성 제외!
+      // 최후: 정말 아무것도 없을 때만
+      (voice) => true,
+    ]
+
+    for (const condition of priorities) {
+      const voice = voices.find(condition)
+      if (voice) {
+        if (voice.lang.includes('ja')) {
+          console.warn('⚠️ 일본어 음성 발견 - 피리오도 방지를 위해 다른 음성 찾는 중...')
+          continue
+        }
+        console.log('✅ 모바일 크롬 안전 음성 선택:', voice.name, `(${voice.lang})`)
         return voice
       }
     }
 
-    console.log('⚠️ Edge에서 적합한 음성을 찾지 못함')
+    console.warn('⚠️ 모바일 크롬에서 적합한 음성을 찾지 못함')
     return null
   }
 
-  selectGeneralVoice() {
-    const voices = speechSynthesis.getVoices()
+  // 🆕 기타 모바일 환경용
+  selectMobileVoice(voices) {
+    console.log('📱 모바일 브라우저 음성 선택 (안전 모드)')
+
+    const priorities = [
+      (voice) => voice.lang.includes('ko') && this.isFemaleVoice(voice),
+      (voice) => voice.lang.includes('ko'),
+      (voice) => voice.lang.includes('en') && this.isFemaleVoice(voice),
+      (voice) => voice.lang.includes('en'),
+      (voice) => !voice.lang.includes('ja'), // 일본어 제외
+      (voice) => true,
+    ]
+
+    for (const condition of priorities) {
+      const voice = voices.find(condition)
+      if (voice) {
+        console.log('✅ 모바일 브라우저 음성 선택:', voice.name, `(${voice.lang})`)
+        return voice
+      }
+    }
+    return null
+  }
+
+  selectEdgeVoice(voices) {
+    const priorities = [
+      (voice) =>
+        voice.name.includes('Microsoft') && voice.lang.includes('ko') && this.isFemaleVoice(voice),
+      (voice) => voice.lang.includes('ko') && this.isFemaleVoice(voice),
+      (voice) => voice.name.includes('Microsoft') && voice.lang.includes('ja'),
+      (voice) => voice.lang.includes('ja'),
+      (voice) => voice.lang.includes('ko'),
+      (voice) =>
+        voice.name.includes('Microsoft') && voice.lang.includes('en') && this.isFemaleVoice(voice),
+      (voice) => true,
+    ]
+
+    for (const condition of priorities) {
+      const voice = voices.find(condition)
+      if (voice) return voice
+    }
+    return null
+  }
+
+  // 🆕 데스크톱 전용으로 분리 (일본어 음성 허용)
+  selectDesktopVoice(voices) {
+    console.log('💻 데스크톱 브라우저 음성 선택')
 
     const priorities = [
       (voice) => voice.lang.includes('ja') && this.isFemaleVoice(voice),
@@ -158,9 +331,11 @@ export class AudioManager {
 
     for (const condition of priorities) {
       const voice = voices.find(condition)
-      if (voice) return voice
+      if (voice) {
+        console.log('✅ 데스크톱 음성 선택:', voice.name, `(${voice.lang})`)
+        return voice
+      }
     }
-
     return null
   }
 
@@ -177,29 +352,47 @@ export class AudioManager {
       'heami',
       'kyoko',
       'haruka',
+      'yuna',
+      'siri',
+      'google 한국어', // 🆕 Google 한국어는 보통 여성 음성
     ]
 
     return femaleKeywords.some((keyword) => voice.name.toLowerCase().includes(keyword))
   }
 
-  setupEdgeVoiceStyle(utterance, selectedVoice) {
-    // 언어 설정
-    if (selectedVoice && selectedVoice.lang.includes('ja')) {
-      utterance.lang = 'ja-JP'
-      console.log('🎵 일본어 모드 (Edge)')
-    } else {
+  setupVoiceForDevice(utterance, selectedVoice) {
+    if (this.isMobileSafari) {
       utterance.lang = 'ko-KR'
-      console.log('🎵 한국어 모드 (Edge)')
-    }
-
-    // ⚠️ Edge에서는 pitch가 지원되지 않으므로 설정하지 않음!
-    if (this.isEdge) {
-      console.log('🔧 Edge 감지: pitch 설정 생략 (Edge에서 지원하지 않음)')
-      // Edge에서는 pitch 설정하지 않음
-      utterance.rate = 0.8 // 속도만 조절
-      utterance.volume = 0.9 // 볼륨 조절
+      utterance.rate = 0.8
+      utterance.volume = 0.9
+      console.log('📱 모바일 사파리: 한국어 모드')
+    } else if (this.isMobileChrome) {
+      // 🆕 모바일 크롬: 항상 한국어로 설정 (피리오도 방지!)
+      utterance.lang = 'ko-KR'
+      utterance.rate = 0.8
+      utterance.volume = 0.9
+      console.log('📱 모바일 크롬: 한국어 모드 (피리오도 방지!)')
+    } else if (this.isMobile) {
+      // 🆕 기타 모바일: 안전하게 한국어
+      utterance.lang = 'ko-KR'
+      utterance.rate = 0.8
+      utterance.volume = 0.9
+      console.log('📱 모바일 브라우저: 한국어 안전 모드')
+    } else if (this.isEdge) {
+      if (selectedVoice && selectedVoice.lang.includes('ja')) {
+        utterance.lang = 'ja-JP'
+      } else {
+        utterance.lang = 'ko-KR'
+      }
+      utterance.rate = 0.8
+      utterance.volume = 0.9
     } else {
-      // 다른 브라우저에서는 pitch 사용 가능
+      // 💻 데스크톱: 일본어 허용
+      if (selectedVoice && selectedVoice.lang.includes('ja')) {
+        utterance.lang = 'ja-JP'
+      } else {
+        utterance.lang = 'ko-KR'
+      }
       utterance.pitch = 1.4
       utterance.rate = 0.9
       utterance.volume = 0.8
@@ -210,79 +403,90 @@ export class AudioManager {
     utterance.onstart = () => {
       this.isPlaying = true
       this.updateSpeakerUI(speakerElement, true)
-      console.log('🎵 일본인 여성 목소리 재생 시작! (Edge 호환)')
+
+      if (this.isMobileChrome) {
+        console.log('📱 모바일 크롬에서 한국어 음성 재생 시작! (피리오도 없음)')
+      } else if (this.isMobile) {
+        console.log('📱 모바일에서 안전한 한국어 음성 재생 시작!')
+      } else {
+        console.log('🎵 음성 재생 시작!')
+      }
     }
 
     utterance.onend = () => {
       this.isPlaying = false
       this.updateSpeakerUI(speakerElement, false)
-      console.log('🎵 일본인 여성 목소리 재생 완료! (Edge 호환)')
+
+      if (this.isMobileChrome) {
+        console.log('📱 모바일 크롬에서 한국어 음성 재생 완료! (피리오도 방지 성공)')
+      } else if (this.isMobile) {
+        console.log('📱 모바일에서 안전한 음성 재생 완료!')
+      } else {
+        console.log('🎵 음성 재생 완료!')
+      }
     }
 
     utterance.onerror = (event) => {
-      console.error('Edge 음성 재생 오류:', event.error)
+      console.error('음성 재생 오류:', event.error)
       this.isPlaying = false
       this.updateSpeakerUI(speakerElement, false)
       this.handleSpeechError(speakerElement)
     }
-
-    // Edge에서 추가 이벤트 처리
-    if (this.isEdge) {
-      utterance.onpause = () => {
-        console.log('🔧 Edge 음성 일시정지')
-      }
-
-      utterance.onresume = () => {
-        console.log('🔧 Edge 음성 재개')
-      }
-    }
   }
 
-  edgeSafeStop() {
+  safeStop() {
     try {
       if (window.speechSynthesis && window.speechSynthesis.speaking) {
-        // Edge에서 안전한 중지
         speechSynthesis.cancel()
 
-        if (this.isEdge) {
-          // Edge에서는 추가 대기 시간 필요
+        if (this.isMobileChrome || this.isMobile) {
+          // 🆕 모바일 환경에서는 더 긴 대기
+          return new Promise((resolve) => setTimeout(resolve, 300))
+        } else if (this.isEdge) {
           return new Promise((resolve) => setTimeout(resolve, 100))
         }
       }
     } catch (error) {
-      console.warn('Edge 음성 중지 중 오류:', error)
+      console.warn('음성 중지 중 오류:', error)
     }
   }
 
-  async edgeSafeSpeak(utterance) {
+  async safeSpeak(utterance) {
     try {
-      if (this.isEdge) {
-        // Edge에서는 단계별 안전한 재생
-        console.log('🔧 Edge 전용 안전 재생 모드')
-
-        // 1단계: 잠시 대기
-        await new Promise((resolve) => setTimeout(resolve, 100))
-
-        // 2단계: 재생 전 상태 확인
-        if (!window.speechSynthesis) {
-          throw new Error('speechSynthesis 사용 불가')
-        }
+      if (this.isMobileChrome) {
+        // 🆕 모바일 크롬 전용 안전 재생
+        console.log('📱 모바일 크롬 전용 안전 재생 모드 (피리오도 방지)')
+        await new Promise((resolve) => setTimeout(resolve, 300))
 
         if (window.speechSynthesis.speaking) {
-          console.log('🔧 Edge: 기존 음성 중지 후 재생')
+          console.log('📱 모바일 크롬: 기존 음성 중지 후 재생')
+          speechSynthesis.cancel()
+          await new Promise((resolve) => setTimeout(resolve, 400))
+        }
+        speechSynthesis.speak(utterance)
+      } else if (this.isMobile) {
+        // 🆕 기타 모바일 환경
+        console.log('📱 모바일 브라우저 안전 재생 모드')
+        await new Promise((resolve) => setTimeout(resolve, 250))
+
+        if (speechSynthesis.speaking) {
+          speechSynthesis.cancel()
+          await new Promise((resolve) => setTimeout(resolve, 350))
+        }
+        speechSynthesis.speak(utterance)
+      } else if (this.isEdge) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        if (speechSynthesis.speaking) {
           speechSynthesis.cancel()
           await new Promise((resolve) => setTimeout(resolve, 200))
         }
-
-        // 3단계: Edge에서 안전한 재생
-        console.log('🔧 Edge: 음성 재생 시작')
         speechSynthesis.speak(utterance)
       } else {
-        // 다른 브라우저에서는 즉시 재생
+        // 💻 데스크톱 즉시 재생
         speechSynthesis.speak(utterance)
       }
     } catch (error) {
-      console.error('Edge 안전 재생 실패:', error)
+      console.error('안전 재생 실패:', error)
       this.handleSpeechError()
     }
   }
@@ -292,18 +496,23 @@ export class AudioManager {
     if (speakerElement) {
       this.updateSpeakerUI(speakerElement, false)
 
-      if (this.isEdge) {
-        speakerElement.title = 'Edge 음성 재생 오류 - 다시 시도해주세요'
-        speakerElement.style.color = '#ff6b6b'
+      if (this.isMobileChrome) {
+        speakerElement.title = '모바일 크롬 음성 재생 오류 - 다시 시도해주세요'
+      } else if (this.isMobile) {
+        speakerElement.title = '모바일 음성 재생 오류 - 다시 시도해주세요'
       } else {
         speakerElement.title = '음성 재생 오류 - 다시 시도해주세요'
-        speakerElement.style.color = '#ff6b6b'
       }
 
-      // 3초 후 원래대로 복구
+      speakerElement.style.color = '#ff6b6b'
+
       setTimeout(() => {
         speakerElement.style.color = ''
-        speakerElement.title = '일본인 여성 목소리로 듣기'
+        if (this.isMobileChrome || this.isMobile) {
+          speakerElement.title = '한국어 음성으로 듣기 (모바일 최적화)'
+        } else {
+          speakerElement.title = '일본인 여성 목소리로 듣기'
+        }
       }, 3000)
     }
   }
@@ -311,7 +520,7 @@ export class AudioManager {
   showUnsupportedMessage(speakerElement) {
     if (speakerElement) {
       speakerElement.textContent = '❌'
-      speakerElement.title = '이 브라우저는 음성 기능을 지원하지 않습니다'
+      speakerElement.title = '이 기기는 음성 기능을 지원하지 않습니다'
       speakerElement.style.color = '#999'
     }
   }
@@ -323,26 +532,28 @@ export class AudioManager {
       speakerElement.classList.add('playing')
       speakerElement.textContent = '🔇'
 
-      if (this.isEdge) {
-        speakerElement.title = '일본인 여성 목소리 재생 중... (Edge 호환 모드)'
+      if (this.isMobileChrome) {
+        speakerElement.title = '한국어 음성 재생 중... (모바일 크롬 최적화, 피리오도 없음!)'
+      } else if (this.isMobile) {
+        speakerElement.title = '한국어 음성 재생 중... (모바일 최적화)'
       } else {
-        speakerElement.title = '일본인 여성 목소리 재생 중...'
+        speakerElement.title = '음성 재생 중...'
       }
 
-      // 일본 스타일 색상
       speakerElement.style.color = '#ff69b4'
       speakerElement.style.filter = 'drop-shadow(0 0 10px rgba(255, 182, 193, 0.7))'
     } else {
       speakerElement.classList.remove('playing')
       speakerElement.textContent = '🔊'
 
-      if (this.isEdge) {
-        speakerElement.title = '일본인 여성 목소리로 듣기 (Edge 완전 호환)'
+      if (this.isMobileChrome) {
+        speakerElement.title = '한국어 음성으로 듣기 (모바일 크롬 최적화, 피리오도 방지!)'
+      } else if (this.isMobile) {
+        speakerElement.title = '한국어 음성으로 듣기 (모바일 최적화)'
       } else {
         speakerElement.title = '일본인 여성 목소리로 듣기'
       }
 
-      // 원래 스타일로 복원
       speakerElement.style.color = ''
       speakerElement.style.filter = ''
     }
@@ -353,91 +564,109 @@ export class AudioManager {
 
     try {
       if (window.speechSynthesis) {
-        if (this.isEdge) {
-          // Edge 전용 안전한 중지
-          console.log('🔧 Edge 전용 음성 중지')
-          speechSynthesis.cancel()
+        speechSynthesis.cancel()
 
-          // Edge에서는 추가 정리 작업
+        if (this.isMobileChrome) {
+          console.log('📱 모바일 크롬 음성 중지 (피리오도 방지 모드)')
           setTimeout(() => {
-            if (window.speechSynthesis.speaking) {
+            if (speechSynthesis.speaking) {
               speechSynthesis.cancel()
             }
-          }, 100)
+          }, 200)
+        } else if (this.isMobile) {
+          console.log('📱 모바일 브라우저 음성 중지')
+          setTimeout(() => {
+            if (speechSynthesis.speaking) {
+              speechSynthesis.cancel()
+            }
+          }, 200)
         } else {
-          speechSynthesis.cancel()
-          console.log('🎵 일반 브라우저 음성 중지')
+          console.log('🎵 음성 중지')
         }
       }
     } catch (error) {
       console.warn('음성 중지 중 오류:', error)
     }
-
-    // 오디오 엘리먼트도 중지
-    if (this.currentAudio) {
-      try {
-        this.currentAudio.pause()
-        this.currentAudio.currentTime = 0
-        this.currentAudio = null
-      } catch (error) {
-        console.warn('오디오 중지 중 오류:', error)
-      }
-    }
   }
 
-  // Edge 전용 디버깅 메서드
-  debugEdge() {
-    console.log('🔍 Edge 디버깅 정보:')
-    console.log('브라우저:', this.isEdge ? 'Microsoft Edge' : '기타')
+  // 🆕 디버깅 메서드 강화
+  debugDevice() {
+    console.log('🔍 디바이스 디버깅 정보 (피리오도 문제 분석):')
+    console.log('📱 모바일 사파리:', this.isMobileSafari ? 'YES' : 'NO')
+    console.log('📱 모바일 크롬:', this.isMobileChrome ? 'YES' : 'NO')
+    console.log('📱 전체 모바일:', this.isMobile ? 'YES' : 'NO')
+    console.log('🌐 Edge:', this.isEdge ? 'YES' : 'NO')
     console.log('User Agent:', navigator.userAgent)
     console.log('speechSynthesis 지원:', !!window.speechSynthesis)
 
     if (window.speechSynthesis) {
       const voices = speechSynthesis.getVoices()
       console.log('사용 가능한 음성 수:', voices.length)
-      console.log('현재 재생 중:', speechSynthesis.speaking)
-      console.log('일시정지 상태:', speechSynthesis.paused)
-      console.log('대기 중:', speechSynthesis.pending)
 
-      // Edge용 음성 목록 출력
-      voices.forEach((voice, index) => {
-        if (voice.lang.includes('ko') || voice.lang.includes('ja')) {
-          console.log(
-            `${index}: ${voice.name} (${voice.lang}) - ${voice.localService ? 'Local' : 'Remote'}`,
-          )
-        }
+      const koreanVoices = voices.filter((v) => v.lang.includes('ko'))
+      const japaneseVoices = voices.filter((v) => v.lang.includes('ja'))
+
+      console.log('🇰🇷 한국어 음성들:')
+      koreanVoices.forEach((voice) => {
+        console.log(`  ✅ ${voice.name} (${voice.lang}) - 안전함`)
       })
+
+      console.log('🇯🇵 일본어 음성들:')
+      japaneseVoices.forEach((voice) => {
+        const warning =
+          this.isMobileChrome || this.isMobile
+            ? ' ⚠️ 모바일에서 사용 금지!'
+            : ' ✅ 데스크톱에서 사용 가능'
+        console.log(`  ${voice.name} (${voice.lang})${warning}`)
+      })
+
+      // 🆕 피리오도 위험 분석
+      if (this.isMobileChrome || this.isMobile) {
+        console.log('🚨 피리오도 위험 분석:')
+        console.log('  - 현재 모바일 환경이므로 한국어 음성만 사용')
+        console.log('  - 일본어 TTS로 한국어 텍스트 읽으면 "피리오도" 발생')
+        console.log('  - 마침표(.)를 "period"로 일본어 발음')
+      }
     }
   }
 
-  // 상태 확인 메서드
+  // 🆕 상태 확인 메서드 강화
   getStatus() {
+    let deviceType = '💻 데스크톱'
+    let voiceMode = '일본인 여성 목소리'
+    let safetyMode = '일반 모드'
+
+    if (this.isMobileSafari) {
+      deviceType = '📱 모바일 사파리'
+      voiceMode = '한국어 음성'
+      safetyMode = '사파리 최적화'
+    } else if (this.isMobileChrome) {
+      deviceType = '📱 모바일 크롬'
+      voiceMode = '한국어 음성'
+      safetyMode = '피리오도 방지 모드' // 🆕
+    } else if (this.isMobile) {
+      deviceType = '📱 모바일 브라우저'
+      voiceMode = '한국어 음성'
+      safetyMode = '모바일 안전 모드'
+    } else if (this.isEdge) {
+      deviceType = '🌐 Edge'
+    }
+
     return {
       isPlaying: this.isPlaying,
-      browser: this.isEdge ? 'Microsoft Edge' : '기타 브라우저',
+      device: deviceType,
+      mobileSafari: this.isMobileSafari,
+      mobileChrome: this.isMobileChrome, // 🆕
+      mobile: this.isMobile, // 🆕
       edgeOptimized: this.isEdge,
       speechSupported: !!window.speechSynthesis,
       voicesAvailable: window.speechSynthesis ? speechSynthesis.getVoices().length : 0,
-      engine: 'Web Speech API (Edge 최적화)',
-      voiceType: '일본인 여성 목소리',
-      pitchSupported: !this.isEdge, // Edge는 pitch 미지원
+      engine: 'Web Speech API (디바이스 최적화)',
+      voiceType: voiceMode,
+      safetyMode: safetyMode, // 🆕
+      languageMode: this.isMobileChrome || this.isMobile ? 'ko-KR (피리오도 방지)' : 'ja-JP/ko-KR',
+      pireriodoPrevention: this.isMobileChrome || this.isMobile, // 🆕 피리오도 방지 여부
     }
-  }
-
-  // Edge 전용 음성 테스트
-  testEdgeVoice() {
-    console.log('🔧 Edge 전용 음성 테스트 시작...')
-    this.debugEdge()
-
-    const testText = '안녕하세요! Edge에서 일본인 여성 목소리 테스트입니다.'
-    const dummyElement = {
-      classList: { add: () => {}, remove: () => {} },
-      style: {},
-      textContent: '',
-      title: '',
-    }
-
-    this.speakWithWebSpeech(testText, dummyElement)
   }
 }
 
@@ -446,18 +675,17 @@ if (typeof window !== 'undefined') {
   window.AudioManager = AudioManager
 }
 
-// Edge 전용 사용 예제 (주석)
+// 🆕 모바일 크롬 사용 예제
 /*
-// 기본 사용법
+// 기본 사용법 (모바일 크롬에서 피리오도 방지)
 const audioManager = new AudioManager()
-audioManager.toggleSpeech("안녕하세요!", speakerElement)
+audioManager.toggleSpeech("안녕하세요! 이제 피리오도 소리가 안 나요.", speakerElement)
 
-// Edge 디버깅
-audioManager.debugEdge()
+// 디바이스별 디버깅
+audioManager.debugDevice()
 
-// Edge 음성 테스트
-audioManager.testEdgeVoice()
-
-// 상태 확인
-console.log(audioManager.getStatus())
+// 피리오도 방지 상태 확인
+const status = audioManager.getStatus()
+console.log('피리오도 방지:', status.pireriodoPrevention)
+console.log('안전 모드:', status.safetyMode)
 */
