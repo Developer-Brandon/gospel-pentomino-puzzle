@@ -235,36 +235,85 @@ export class AudioManager {
 
   // 🆕 모바일 크롬 전용 음성 선택 (피리오도 방지!)
   selectMobileChromeVoice(voices) {
-    console.log('📱 모바일 크롬 전용 음성 선택 (피리오도 방지 모드)')
+    console.log('📱 모바일 크롬 전용 음성 선택 (피리오도 방지 + 여성 음성 우선)')
+
+    // 🆕 음성 디버깅: 사용 가능한 모든 한국어 음성 출력
+    const koreanVoices = voices.filter((v) => v.lang.includes('ko'))
+    console.log('🇰🇷 사용 가능한 한국어 음성들:')
+    koreanVoices.forEach((voice, index) => {
+      const isFemale = this.isFemaleVoice(voice)
+      const genderIcon = isFemale ? '👩' : '👨'
+      console.log(
+        `  ${index + 1}. ${genderIcon} ${voice.name} (${voice.lang}) - ${isFemale ? '여성' : '남성'}`,
+      )
+    })
 
     // ⚠️ 중요: 모바일 크롬에서는 한국어 음성만 사용!
     // 일본어 음성으로 한국어 텍스트 읽으면 "피리오도" 등 이상한 소리 발생
     const priorities = [
-      // 1순위: 한국어 여성 음성 (Google 한국어 우선)
+      // 🆕 1순위: Google 한국어 여성 음성 (고품질)
       (voice) =>
-        voice.name.includes('Google') && voice.lang.includes('ko') && this.isFemaleVoice(voice),
-      // 2순위: 한국어 여성 음성 (전체)
+        voice.name.toLowerCase().includes('google') &&
+        voice.lang.includes('ko') &&
+        this.isFemaleVoice(voice),
+
+      // 🆕 2순위: 네트워크/클라우드 한국어 여성 음성 (고품질)
+      (voice) =>
+        (voice.name.toLowerCase().includes('network') ||
+          voice.name.toLowerCase().includes('cloud') ||
+          voice.name.toLowerCase().includes('enhanced')) &&
+        voice.lang.includes('ko') &&
+        this.isFemaleVoice(voice),
+
+      // 3순위: 일반 한국어 여성 음성
       (voice) => voice.lang.includes('ko') && this.isFemaleVoice(voice),
-      // 3순위: 한국어 음성 (성별 무관)
+
+      // 🆕 4순위: 시스템 기본 한국어 음성 (성별 미분류, 하지만 보통 여성)
+      (voice) =>
+        voice.lang.includes('ko') &&
+        (voice.name.toLowerCase().includes('system') ||
+          voice.name.toLowerCase().includes('default')),
+
+      // 5순위: 한국어 음성 (성별 무관)
       (voice) => voice.lang.includes('ko'),
-      // 4순위: 영어 여성 음성 (한국어 없을 때만)
+
+      // 🆕 6순위: 영어 여성 음성 (한국어 없을 때만, 그래도 여성으로)
       (voice) => voice.lang.includes('en') && this.isFemaleVoice(voice),
-      // 5순위: 영어 음성
+
+      // 7순위: 영어 음성
       (voice) => voice.lang.includes('en'),
-      // 6순위: 아무 음성 (일본어 제외!)
+
+      // 8순위: 아무 음성 (일본어 제외!)
       (voice) => !voice.lang.includes('ja'), // 🚫 일본어 음성 제외!
+
       // 최후: 정말 아무것도 없을 때만
       (voice) => true,
     ]
 
-    for (const condition of priorities) {
+    for (let i = 0; i < priorities.length; i++) {
+      const condition = priorities[i]
       const voice = voices.find(condition)
+
       if (voice) {
+        // 일본어 음성이면 건너뛰기
         if (voice.lang.includes('ja')) {
           console.warn('⚠️ 일본어 음성 발견 - 피리오도 방지를 위해 다른 음성 찾는 중...')
           continue
         }
-        console.log('✅ 모바일 크롬 안전 음성 선택:', voice.name, `(${voice.lang})`)
+
+        const isFemale = this.isFemaleVoice(voice)
+        const genderInfo = isFemale ? '👩 여성' : '👨 남성'
+        console.log(
+          `✅ 모바일 크롬 음성 선택 (우선순위 ${i + 1}): ${voice.name} (${voice.lang}) - ${genderInfo}`,
+        )
+
+        // 🆕 남성 음성 선택됐을 때 경고
+        if (!isFemale) {
+          console.warn(
+            '⚠️ 여성 음성을 찾지 못해 남성 음성을 선택했습니다. pitch로 조정할 예정입니다.',
+          )
+        }
+
         return voice
       }
     }
@@ -340,13 +389,20 @@ export class AudioManager {
   }
 
   isFemaleVoice(voice) {
+    const voiceName = voice.name.toLowerCase()
+    const voiceLang = voice.lang.toLowerCase()
+
+    // 🆕 모바일 환경 특화 여성 음성 키워드 대폭 확장!
     const femaleKeywords = [
+      // 기본 여성 키워드
       'female',
       'woman',
       'girl',
       '여성',
       '여자',
       '여',
+
+      // 데스크톱 음성들
       'zira',
       'hazel',
       'heami',
@@ -354,10 +410,74 @@ export class AudioManager {
       'haruka',
       'yuna',
       'siri',
-      'google 한국어', // 🆕 Google 한국어는 보통 여성 음성
+
+      // 🆕 모바일 크롬 & 안드로이드 특화
+      'google 한국어',
+      'chrome korean',
+      'android korean',
+      'samsung korean',
+      'samsung 한국어',
+      'lg korean',
+      'lg 한국어',
+
+      // 🆕 iOS 특화 (iPhone/iPad)
+      'siri female',
+      'yuna',
+      'korean siri',
+      'ios korean',
+
+      // 🆕 시스템 음성 (보통 여성이 기본)
+      'system korean',
+      'system 한국어',
+      'default korean',
+
+      // 🆕 네트워크 음성 (클라우드 TTS, 보통 고품질 여성 음성)
+      'network',
+      'cloud',
+      'enhanced',
+      'premium',
+
+      // 🆕 특정 모바일 브랜드
+      'xiaomi',
+      'huawei',
+      'oppo',
+      'vivo',
+      'oneplus',
     ]
 
-    return femaleKeywords.some((keyword) => voice.name.toLowerCase().includes(keyword))
+    // 1차: 키워드 매칭
+    const hasKeyword = femaleKeywords.some((keyword) => voiceName.includes(keyword))
+    if (hasKeyword) {
+      console.log(`✅ 여성 음성 키워드 매칭: ${voice.name}`)
+      return true
+    }
+
+    // 🆕 2차: 모바일 특화 패턴 매칭
+    if (this.isMobile) {
+      // 네트워크 기반 음성은 보통 고품질 여성 음성
+      if (voiceName.includes('network') || voiceName.includes('x-')) {
+        console.log(`✅ 모바일 네트워크 음성 (여성 추정): ${voice.name}`)
+        return true
+      }
+
+      // 한국어 음성 중에서 이름에 숫자나 특수 코드가 있으면 시스템 기본 (보통 여성)
+      if (voiceLang.includes('ko') && /[0-9]/.test(voiceName)) {
+        console.log(`✅ 모바일 시스템 한국어 음성 (여성 추정): ${voice.name}`)
+        return true
+      }
+
+      // 'female' 없어도 남성 키워드가 없으면 여성으로 간주 (모바일 환경)
+      const maleKeywords = ['male', 'man', 'boy', '남성', '남자', '남']
+      const hasMaleKeyword = maleKeywords.some((keyword) => voiceName.includes(keyword))
+
+      if (!hasMaleKeyword && voiceLang.includes('ko')) {
+        console.log(`✅ 모바일 한국어 음성 (남성 키워드 없음, 여성 추정): ${voice.name}`)
+        return true
+      }
+    }
+
+    console.log(`❌ 남성 음성으로 분류: ${voice.name}`)
+    return false
   }
 
   setupVoiceForDevice(utterance, selectedVoice) {
@@ -371,13 +491,29 @@ export class AudioManager {
       utterance.lang = 'ko-KR'
       utterance.rate = 0.8
       utterance.volume = 0.9
-      console.log('📱 모바일 크롬: 한국어 모드 (피리오도 방지!)')
+
+      // 🆕 남성 음성일 때 pitch 높이기 (여성스럽게 조정)
+      if (selectedVoice && !this.isFemaleVoice(selectedVoice)) {
+        utterance.pitch = 1.6 // 높은 pitch로 여성스럽게
+        console.log('📱 모바일 크롬: 한국어 모드 + 남성 음성 pitch 조정 (1.6)')
+      } else {
+        utterance.pitch = 1.2 // 여성 음성도 약간 높게
+        console.log('📱 모바일 크롬: 한국어 모드 + 여성 음성 (피리오도 방지!)')
+      }
     } else if (this.isMobile) {
       // 🆕 기타 모바일: 안전하게 한국어
       utterance.lang = 'ko-KR'
       utterance.rate = 0.8
       utterance.volume = 0.9
-      console.log('📱 모바일 브라우저: 한국어 안전 모드')
+
+      // 🆕 모바일에서도 pitch 조정
+      if (selectedVoice && !this.isFemaleVoice(selectedVoice)) {
+        utterance.pitch = 1.5 // 남성 음성 pitch 높이기
+        console.log('📱 모바일 브라우저: 한국어 안전 모드 + 남성 음성 pitch 조정')
+      } else {
+        utterance.pitch = 1.1
+        console.log('📱 모바일 브라우저: 한국어 안전 모드')
+      }
     } else if (this.isEdge) {
       if (selectedVoice && selectedVoice.lang.includes('ja')) {
         utterance.lang = 'ja-JP'
@@ -591,7 +727,7 @@ export class AudioManager {
 
   // 🆕 디버깅 메서드 강화
   debugDevice() {
-    console.log('🔍 디바이스 디버깅 정보 (피리오도 문제 분석):')
+    console.log('🔍 디바이스 디버깅 정보 (피리오도 + 남성 음성 문제 분석):')
     console.log('📱 모바일 사파리:', this.isMobileSafari ? 'YES' : 'NO')
     console.log('📱 모바일 크롬:', this.isMobileChrome ? 'YES' : 'NO')
     console.log('📱 전체 모바일:', this.isMobile ? 'YES' : 'NO')
@@ -606,26 +742,62 @@ export class AudioManager {
       const koreanVoices = voices.filter((v) => v.lang.includes('ko'))
       const japaneseVoices = voices.filter((v) => v.lang.includes('ja'))
 
-      console.log('🇰🇷 한국어 음성들:')
-      koreanVoices.forEach((voice) => {
-        console.log(`  ✅ ${voice.name} (${voice.lang}) - 안전함`)
+      console.log('\n🇰🇷 한국어 음성들 (성별 분석):')
+      koreanVoices.forEach((voice, index) => {
+        const isFemale = this.isFemaleVoice(voice)
+        const genderIcon = isFemale ? '👩' : '👨'
+        const safetyIcon = isFemale ? '✅' : '⚠️'
+        console.log(
+          `  ${index + 1}. ${genderIcon} ${safetyIcon} ${voice.name} (${voice.lang}) - ${isFemale ? '여성 (권장)' : '남성 (pitch 조정됨)'}`,
+        )
       })
 
-      console.log('🇯🇵 일본어 음성들:')
-      japaneseVoices.forEach((voice) => {
+      console.log('\n🇯🇵 일본어 음성들:')
+      japaneseVoices.forEach((voice, index) => {
         const warning =
           this.isMobileChrome || this.isMobile
-            ? ' ⚠️ 모바일에서 사용 금지!'
+            ? ' 🚫 모바일에서 사용 금지!'
             : ' ✅ 데스크톱에서 사용 가능'
-        console.log(`  ${voice.name} (${voice.lang})${warning}`)
+        console.log(`  ${index + 1}. ${voice.name} (${voice.lang})${warning}`)
       })
 
-      // 🆕 피리오도 위험 분석
+      // 🆕 실제 선택될 음성 미리보기
+      console.log('\n🎯 현재 환경에서 선택될 음성:')
+      const selectedVoice = this.selectVoiceForDevice()
+      if (selectedVoice) {
+        const isFemale = this.isFemaleVoice(selectedVoice)
+        const genderIcon = isFemale ? '👩' : '👨'
+        console.log(`  선택된 음성: ${genderIcon} ${selectedVoice.name} (${selectedVoice.lang})`)
+        console.log(`  성별: ${isFemale ? '여성' : '남성'}`)
+        console.log(
+          `  Pitch 조정: ${!isFemale && (this.isMobileChrome || this.isMobile) ? 'YES (1.5-1.6)' : 'NO/기본'}`,
+        )
+      } else {
+        console.log('  ❌ 선택된 음성 없음')
+      }
+
+      // 🆕 문제 분석
+      console.log('\n🚨 문제 분석:')
       if (this.isMobileChrome || this.isMobile) {
-        console.log('🚨 피리오도 위험 분석:')
         console.log('  - 현재 모바일 환경이므로 한국어 음성만 사용')
         console.log('  - 일본어 TTS로 한국어 텍스트 읽으면 "피리오도" 발생')
-        console.log('  - 마침표(.)를 "period"로 일본어 발음')
+        console.log('  - 남성 음성 선택 시 pitch를 높여서 여성스럽게 조정')
+
+        const femaleKoreanCount = koreanVoices.filter((v) => this.isFemaleVoice(v)).length
+        if (femaleKoreanCount === 0) {
+          console.log('  ⚠️ 여성 한국어 음성이 없어서 남성 음성을 pitch 조정해서 사용')
+        } else {
+          console.log(`  ✅ 여성 한국어 음성 ${femaleKoreanCount}개 사용 가능`)
+        }
+      }
+
+      // 🆕 권장사항
+      console.log('\n💡 권장사항:')
+      if (this.isMobileChrome || this.isMobile) {
+        if (koreanVoices.filter((v) => this.isFemaleVoice(v)).length === 0) {
+          console.log('  - 시스템 설정에서 여성 한국어 음성을 추가 다운로드하세요')
+          console.log('  - 현재는 pitch 조정으로 남성 음성을 여성스럽게 만들고 있습니다')
+        }
       }
     }
   }
@@ -643,29 +815,94 @@ export class AudioManager {
     } else if (this.isMobileChrome) {
       deviceType = '📱 모바일 크롬'
       voiceMode = '한국어 음성'
-      safetyMode = '피리오도 방지 모드' // 🆕
+      safetyMode = '피리오도 방지 + 여성 음성 우선' // 🆕
     } else if (this.isMobile) {
       deviceType = '📱 모바일 브라우저'
       voiceMode = '한국어 음성'
-      safetyMode = '모바일 안전 모드'
+      safetyMode = '모바일 안전 모드 + 여성 음성 우선' // 🆕
     } else if (this.isEdge) {
       deviceType = '🌐 Edge'
+    }
+
+    // 🆕 현재 선택된 음성 정보
+    const selectedVoice = this.selectVoiceForDevice()
+    let currentVoiceInfo = '음성 정보 없음'
+    let genderAdjustment = '없음'
+
+    if (selectedVoice) {
+      const isFemale = this.isFemaleVoice(selectedVoice)
+      const genderIcon = isFemale ? '👩' : '👨'
+      currentVoiceInfo = `${genderIcon} ${selectedVoice.name} (${selectedVoice.lang})`
+
+      if (!isFemale && (this.isMobileChrome || this.isMobile)) {
+        genderAdjustment = 'Pitch 조정 (1.5-1.6) - 남성 음성을 여성스럽게'
+      }
     }
 
     return {
       isPlaying: this.isPlaying,
       device: deviceType,
       mobileSafari: this.isMobileSafari,
-      mobileChrome: this.isMobileChrome, // 🆕
-      mobile: this.isMobile, // 🆕
+      mobileChrome: this.isMobileChrome,
+      mobile: this.isMobile,
       edgeOptimized: this.isEdge,
       speechSupported: !!window.speechSynthesis,
       voicesAvailable: window.speechSynthesis ? speechSynthesis.getVoices().length : 0,
       engine: 'Web Speech API (디바이스 최적화)',
       voiceType: voiceMode,
-      safetyMode: safetyMode, // 🆕
+      safetyMode: safetyMode,
       languageMode: this.isMobileChrome || this.isMobile ? 'ko-KR (피리오도 방지)' : 'ja-JP/ko-KR',
-      pireriodoPrevention: this.isMobileChrome || this.isMobile, // 🆕 피리오도 방지 여부
+      pireriodoPrevention: this.isMobileChrome || this.isMobile,
+      currentVoice: currentVoiceInfo, // 🆕
+      genderAdjustment: genderAdjustment, // 🆕
+      femaleVoicePriority: this.isMobileChrome || this.isMobile, // 🆕
+    }
+  }
+
+  // 🆕 음성 테스트 메서드 (개발용)
+  testVoiceSelection() {
+    console.log('\n🧪 음성 선택 테스트:')
+
+    const voices = speechSynthesis.getVoices()
+    if (voices.length === 0) {
+      console.log('❌ 사용 가능한 음성이 없습니다.')
+      return
+    }
+
+    console.log(`📊 전체 음성 수: ${voices.length}`)
+
+    // 한국어 음성 분석
+    const koreanVoices = voices.filter((v) => v.lang.includes('ko'))
+    const femaleKoreanVoices = koreanVoices.filter((v) => this.isFemaleVoice(v))
+    const maleKoreanVoices = koreanVoices.filter((v) => !this.isFemaleVoice(v))
+
+    console.log(`🇰🇷 한국어 음성: ${koreanVoices.length}개`)
+    console.log(`👩 여성 한국어: ${femaleKoreanVoices.length}개`)
+    console.log(`👨 남성 한국어: ${maleKoreanVoices.length}개`)
+
+    // 선택 결과
+    const selectedVoice = this.selectVoiceForDevice()
+    if (selectedVoice) {
+      const isFemale = this.isFemaleVoice(selectedVoice)
+      console.log(`\n🎯 최종 선택: ${selectedVoice.name}`)
+      console.log(`   언어: ${selectedVoice.lang}`)
+      console.log(`   성별: ${isFemale ? '👩 여성' : '👨 남성'}`)
+      console.log(
+        `   Pitch 조정: ${!isFemale && (this.isMobileChrome || this.isMobile) ? '적용됨' : '없음'}`,
+      )
+    }
+
+    return {
+      totalVoices: voices.length,
+      koreanVoices: koreanVoices.length,
+      femaleKorean: femaleKoreanVoices.length,
+      maleKorean: maleKoreanVoices.length,
+      selectedVoice: selectedVoice ? selectedVoice.name : null,
+      selectedGender: selectedVoice
+        ? this.isFemaleVoice(selectedVoice)
+          ? 'female'
+          : 'male'
+        : null,
     }
   }
 }
