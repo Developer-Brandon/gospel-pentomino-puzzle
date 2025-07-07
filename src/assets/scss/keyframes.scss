@@ -40,47 +40,32 @@
 @keyframes divineSelection {
   0%,
   100% {
-    transform: scale(1);
-    box-shadow: 0 0 40px rgba(255, 215, 0, 0.8);
-  }
-  25% {
-    transform: scale(1.06);
-    box-shadow:
-      0 0 60px rgba(255, 215, 0, 1),
-      0 0 100px rgba(255, 215, 0, 0.6);
+    transform: scale(1) translate3d(0, 0, 0);
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
   }
   50% {
-    transform: scale(1.08);
-    box-shadow:
-      0 0 80px rgba(255, 215, 0, 1),
-      0 0 120px rgba(255, 215, 0, 0.8);
-  }
-  75% {
-    transform: scale(1.06);
-    box-shadow:
-      0 0 60px rgba(255, 215, 0, 1),
-      0 0 100px rgba(255, 215, 0, 0.6);
+    transform: scale(1.05) translate3d(0, 0, 0);
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
   }
 }
+
 @keyframes modalFadeIn {
   from {
     opacity: 0;
-    backdrop-filter: blur(0px);
   }
   to {
     opacity: 1;
-    backdrop-filter: blur(10px);
   }
 }
 
 @keyframes modalSlideIn {
   from {
-    transform: translateY(-100px) scale(0.8);
     opacity: 0;
+    transform: translate3d(0, -20px, 0) scale(0.95);
   }
   to {
-    transform: translateY(0) scale(1);
     opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
