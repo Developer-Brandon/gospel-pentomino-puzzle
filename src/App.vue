@@ -28,7 +28,7 @@ class GospelPentomino {
     this.containerId = containerId
     this.container = document.getElementById(containerId)
     this.options = {
-      title: options.title || '복음퍼즐-펜토미노',
+      title: options.title || '가스펠-펜토미노(복음퍼즐)',
       subtitle: options.subtitle || '© Copyright is owned by 이도겸',
       verse: options.verse || '"하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니" - 요한복음 3:16',
       width: options.width || 'min(80vw, 80vh)',
